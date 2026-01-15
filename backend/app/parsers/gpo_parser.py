@@ -355,16 +355,29 @@ class GPOParser:
     def _find_element(self, parent, paths: list[str], ns: dict):
         """Find element using multiple possible paths."""
         for path in paths:
+            # 1. Try strict namespace if provided
             if ns:
-                # Add namespace prefix to each path component
-                ns_path = '/'.join(f"gp:{p}" for p in path.split('/'))
-                result = parent.xpath(ns_path, namespaces=ns)
-                if result:
-                    return result[0]
-            else:
-                result = parent.find(f'.//{path}')
-                if result is not None:
-                    return result
+                try:
+                    # Add namespace prefix to each path component
+                    ns_path = '/'.join(f"gp:{p}" for p in path.split('/'))
+                    result = parent.xpath(ns_path, namespaces=ns)
+                    if result:
+                        return result[0]
+                except Exception:
+                    pass
+            
+            # 2. Try standard find (for no namespace or simple cases)
+            result = parent.find(f'.//{path}')
+            if result is not None:
+                return result
+                
+            # 3. Fallback: Try loose local-name matching for single-level paths
+            # This handles cases where namespaces are messed up or unexpected
+            if '/' not in path:
+                child = self._find_child_by_local_name(parent, [path])
+                if child is not None:
+                    return child
+                    
         return None
     
     def _extract_settings_xml(self, root, ns: dict, gpo_id: str, gpo_name: str) -> list[PolicySetting]:
