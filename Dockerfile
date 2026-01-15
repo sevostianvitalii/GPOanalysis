@@ -3,12 +3,14 @@
 # Compatible with Docker and Podman on Windows, Mac, and Linux
 # =============================================================================
 
-ARG REGISTRY=docker.io
+# Allow overriding base images for cases where docker.io is blocked
+ARG BASE_NODE_IMAGE=node:20-alpine
+ARG BASE_PYTHON_IMAGE=python:3.12-slim
 
 # -----------------------------------------------------------------------------
 # Stage 1: Build Frontend
 # -----------------------------------------------------------------------------
-FROM ${REGISTRY}/library/node:20-alpine AS frontend-builder
+FROM ${BASE_NODE_IMAGE} AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -25,7 +27,7 @@ RUN npm run build
 # -----------------------------------------------------------------------------
 # Stage 2: Build Backend Dependencies
 # -----------------------------------------------------------------------------
-FROM ${REGISTRY}/library/python:3.12-slim AS backend-builder
+FROM ${BASE_PYTHON_IMAGE} AS backend-builder
 
 WORKDIR /app
 
@@ -46,7 +48,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # -----------------------------------------------------------------------------
 # Stage 3: Production Image
 # -----------------------------------------------------------------------------
-FROM ${REGISTRY}/library/python:3.12-slim AS production
+FROM ${BASE_PYTHON_IMAGE} AS production
 
 # Labels for container metadata
 LABEL org.opencontainers.image.title="GPO Analysis Tool"
