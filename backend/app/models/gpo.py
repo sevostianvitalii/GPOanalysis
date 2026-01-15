@@ -126,6 +126,7 @@ class ImprovementSuggestion(BaseModel):
     affected_gpos: list[str] = Field(default_factory=list)
     action: str = Field(..., description="Recommended action to take")
     estimated_impact: str = Field(default="", description="Expected benefit from implementing")
+    reference_url: Optional[str] = Field(default=None, description="Link to Microsoft documentation")
 
 
 class AnalysisResult(BaseModel):

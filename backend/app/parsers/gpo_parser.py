@@ -222,7 +222,12 @@ class GPOParser:
         category: str, 
         scope: str
     ) -> Optional[PolicySetting]:
-        """Parse a table row as a policy setting."""
+        """Parse a table row as a policy setting.
+        
+        Handles multiple Microsoft GPO HTML formats:
+        1. Policy | State | Setting (3 columns)
+        2. Policy | Setting (2 columns, state extracted from value)
+        """
         if len(cells) < 2:
             return None
         
@@ -237,27 +242,59 @@ class GPOParser:
         state = PolicyState.NOT_CONFIGURED
         value = None
         
+        # Normalize headers for comparison
+        headers_lower = [h.lower() if h else '' for h in headers]
+        
         if headers:
-            for i, header in enumerate(headers):
-                if i < len(cell_texts):
-                    if 'policy' in header or 'setting' in header or 'name' in header:
-                        setting_name = cell_texts[i]
-                    elif 'state' in header or 'status' in header:
-                        state = self._parse_state(cell_texts[i])
-                    elif 'value' in header or 'data' in header:
-                        value = cell_texts[i]
+            # Find column indices by header name
+            policy_idx = -1
+            state_idx = -1
+            value_idx = -1
+            
+            for i, header in enumerate(headers_lower):
+                if 'policy' in header or 'name' in header:
+                    policy_idx = i
+                elif 'state' in header or 'status' in header:
+                    state_idx = i
+                elif 'setting' in header or 'value' in header or 'data' in header:
+                    value_idx = i
+            
+            # Extract values based on found indices
+            if policy_idx >= 0 and policy_idx < len(cell_texts):
+                setting_name = cell_texts[policy_idx]
+            elif len(cell_texts) > 0:
+                # Default to first column if no policy column found
+                setting_name = cell_texts[0]
+            
+            if state_idx >= 0 and state_idx < len(cell_texts):
+                state = self._parse_state(cell_texts[state_idx])
+            
+            if value_idx >= 0 and value_idx < len(cell_texts):
+                value = cell_texts[value_idx]
+            
+            # Handle 2-column format (Policy | Setting) - common in Microsoft reports
+            # where 'setting' column contains both state and value
+            if state_idx < 0 and value_idx >= 0 and value_idx < len(cell_texts):
+                value_text = cell_texts[value_idx]
+                # Check if value contains state indicator
+                state, value = self._extract_state_from_value(value_text)
+                
         else:
-            # Assume first column is name, second is state/value
+            # No headers - assume positional
             setting_name = cell_texts[0] if len(cell_texts) > 0 else ""
             if len(cell_texts) > 1:
-                # Check if second column looks like a state
-                second_col = cell_texts[1].lower()
+                # Check if second column looks like a pure state
+                second_col = cell_texts[1].lower().strip()
                 if second_col in ['enabled', 'disabled', 'not configured']:
                     state = self._parse_state(cell_texts[1])
-                    if len(cell_texts) > 2:
+                    if len(cell_texts) > 2 and cell_texts[2]:
                         value = cell_texts[2]
                 else:
-                    value = cell_texts[1]
+                    # Try to extract state from value text
+                    state, value = self._extract_state_from_value(cell_texts[1])
+                    # If we have a 3rd column and no value extracted, use it
+                    if not value and len(cell_texts) > 2 and cell_texts[2]:
+                        value = cell_texts[2]
         
         if not setting_name:
             return None
@@ -271,6 +308,36 @@ class GPOParser:
             value=value,
             scope=scope
         )
+    
+    def _extract_state_from_value(self, value_text: str) -> tuple[PolicyState, Optional[str]]:
+        """Extract state and remaining value from a combined value text.
+        
+        Microsoft GPO HTML often puts both state and value in one column,
+        e.g., "Enabled", "8 characters", "Disabled", "24 passwords remembered"
+        
+        Returns:
+            Tuple of (PolicyState, remaining value or None)
+        """
+        if not value_text:
+            return PolicyState.NOT_CONFIGURED, None
+        
+        text_lower = value_text.lower().strip()
+        
+        # Pure state values
+        if text_lower == 'enabled':
+            return PolicyState.ENABLED, None
+        elif text_lower == 'disabled':
+            return PolicyState.DISABLED, None
+        elif text_lower in ['not configured', 'not defined']:
+            return PolicyState.NOT_CONFIGURED, None
+        
+        # Value text that implies enabled state (contains a configured value)
+        # Examples: "8 characters", "90 days", "24 passwords remembered"
+        if value_text and value_text.strip():
+            # If it has a numeric value or specific setting, it's configured (enabled)
+            return PolicyState.ENABLED, value_text.strip()
+        
+        return PolicyState.NOT_CONFIGURED, None
     
     def _parse_xml(self, content: str, source_file: str) -> tuple[list[GPOInfo], list[PolicySetting]]:
         """Parse XML format GPO report (Get-GPOReport -ReportType XML or gpresult /X)."""

@@ -1,0 +1,60 @@
+[
+    {
+        "id": "SEC-001",
+        "name": "Minimum Password Length",
+        "description": "Ensure minimum password length is at least 14 characters.",
+        "category": "security",
+        "severity": "high",
+        "setting_name": "Minimum password length",
+        "recommended_value": 14,
+        "operator": "greater_than_or_equal",
+        "rationale": "Short passwords are easily brute-forced. Microsoft recommends 14+ characters for legacy systems, or MFA for modern ones.",
+        "reference_url": "https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/minimum-password-length"
+    },
+    {
+        "id": "SEC-002",
+        "name": "Account Lockout Threshold",
+        "description": "Account should lock after invalid login attempts.",
+        "category": "security",
+        "severity": "medium",
+        "setting_name": "Account lockout threshold",
+        "recommended_value": 5,
+        "operator": "less_than_or_equal",
+        "rationale": "Prevents brute-force attacks. A value between 5 and 10 is typically recommended.",
+        "reference_url": "https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/account-lockout-threshold"
+    },
+    {
+        "id": "SEC-003",
+        "name": "Maximum Password Age",
+        "description": "Passwords should expire periodically.",
+        "category": "security",
+        "severity": "medium",
+        "setting_name": "Maximum password age",
+        "recommended_value": 60,
+        "operator": "less_than_or_equal",
+        "rationale": "Rotates credentials to minimize impact of compromised hashes. 60-90 days is standard.",
+        "reference_url": "https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/maximum-password-age"
+    },
+    {
+        "id": "PERF-001",
+        "name": "Wait for network at startup",
+        "description": "Ensure synchronous processing for critical policies.",
+        "category": "performance",
+        "severity": "low",
+        "setting_name": "Always wait for the network at computer startup and logon",
+        "recommended_value": "Enabled",
+        "operator": "equals",
+        "rationale": "Prevents issues where policies fail to apply because the network wasn't ready. Affects startup time but ensures reliability."
+    },
+    {
+        "id": "SEC-004",
+        "name": "Admin Account Status",
+        "description": "Built-in Administrator account should be disabled.",
+        "category": "security",
+        "severity": "critical",
+        "setting_name": "Accounts: Administrator account status",
+        "recommended_value": "Disabled",
+        "operator": "equals",
+        "rationale": "The built-in Administrator account is a known target. Disabling it forces attackers to guess usernames."
+    }
+]

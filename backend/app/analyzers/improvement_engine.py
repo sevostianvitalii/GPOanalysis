@@ -11,6 +11,7 @@ from backend.app.models.gpo import (
     GPOInfo, PolicySetting, ImprovementSuggestion, ImprovementCategory, 
     SeverityLevel, PolicyState
 )
+from backend.app.analyzers.knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class ImprovementEngine:
         self.settings = settings
         self.settings_by_gpo: dict[str, list[PolicySetting]] = defaultdict(list)
         self._index_settings()
+        self.kb = KnowledgeBase()
     
     def _index_settings(self) -> None:
         """Index settings by GPO."""
@@ -48,6 +50,7 @@ class ImprovementEngine:
         suggestions.extend(self._check_unused_sections())
         suggestions.extend(self._check_consolidation_opportunities())
         suggestions.extend(self._check_security_recommendations())
+        suggestions.extend(self._check_best_practices())
         
         logger.info(f"Improvement engine complete: {len(suggestions)} suggestion(s) generated")
         return suggestions
@@ -177,7 +180,7 @@ class ImprovementEngine:
         """Check for GPOs that could be consolidated."""
         suggestions = []
         
-        # Group GPOs by similar naming patterns
+        # 1. Name-based Consolidation
         gpo_groups = defaultdict(list)
         
         for gpo in self.gpos:
@@ -213,6 +216,64 @@ class ImprovementEngine:
                             f"more comprehensive policies to simplify management."
                         ),
                         estimated_impact="Reduced complexity, faster troubleshooting, fewer GPOs to manage"
+                    ))
+
+        # 2. Content-based Consolidation (Smart Grouping)
+        from collections import Counter
+        category_groups = defaultdict(list)
+        
+        for gpo in self.gpos:
+            settings = self.settings_by_gpo.get(gpo.id, [])
+            configured_settings = [s for s in settings if s.state != PolicyState.NOT_CONFIGURED]
+            
+            if not configured_settings:
+                continue
+                
+            # Extract top-level category (e.g., "Software Settings", "Windows Components")
+            # Assuming category format like "Computer Configuration\Policies\Windows Settings\..."
+            # We want the meaningful functional area.
+            categories = []
+            for s in configured_settings:
+                parts = s.category.split('\\')
+                # Try to find meaningful part (skip generic roots)
+                for part in parts:
+                    if part not in ["Computer Configuration", "User Configuration", "Policies", "Administrative Templates"]:
+                        categories.append(part)
+                        break
+            
+            if not categories:
+                continue
+                
+            # Determine dominant category
+            counts = Counter(categories)
+            dominant, count = counts.most_common(1)[0]
+            
+            # If dominant category represents > 70% of settings
+            if count / len(configured_settings) > 0.7:
+                category_groups[dominant].append(gpo)
+        
+        # Suggest consolidation for category groups
+        for cat, group_gpos in category_groups.items():
+            # Only suggest if we have multiple GPOs and they weren't already caught by name prefix
+            # (Simple heuristic: if names are very different)
+            if len(group_gpos) >= 3:
+                # Check for name diversity
+                names = [g.name for g in group_gpos]
+                prefixes = set(n.split('-')[0] for n in names)
+                
+                if len(prefixes) > 1: # If they have different prefixes but same content
+                    suggestions.append(ImprovementSuggestion(
+                        id=str(uuid.uuid4()),
+                        category=ImprovementCategory.CONSOLIDATION,
+                        severity=SeverityLevel.MEDIUM,
+                        title=f"Consolidate GPOs for '{cat}'",
+                        description=(
+                            f"Identified {len(group_gpos)} GPOs that primarily configure '{cat}' settings "
+                            f"(>70% of content). These seem to handle the same functional area."
+                        ),
+                        affected_gpos=names,
+                        action=f"Merge these GPOs into a single 'Policy-{cat}' GPO to simplify management.",
+                        estimated_impact="centralized management of functional areas, reduced GPO sprawl"
                     ))
         
         return suggestions
@@ -257,6 +318,34 @@ class ImprovementEngine:
                 estimated_impact="Easier security audits, better compliance tracking, clearer security posture"
             ))
         
+        return suggestions
+
+    def _check_best_practices(self) -> list[ImprovementSuggestion]:
+        """Check settings against Knowledge Base best practices."""
+        suggestions = []
+        
+        for setting in self.settings:
+            # Need to handle case-insensitive matching and potential multiple rule matches
+            rules = self.kb.get_rules_for_setting(setting.name)
+            
+            for rule in rules:
+                if setting.state == PolicyState.NOT_CONFIGURED:
+                    continue
+                    
+                # Evaluate
+                if not self.kb.evaluate(setting.value, rule):
+                    suggestions.append(ImprovementSuggestion(
+                        id=str(uuid.uuid4()),
+                        category=ImprovementCategory.SECURITY if rule.category == "security" else ImprovementCategory.PERFORMANCE,
+                        severity=rule.severity,
+                        title=f"Best Practice Violation: {rule.name}",
+                        description=f"Current value '{setting.value}' does not meet recommendation. {rule.description}",
+                        affected_gpos=[setting.gpo_name],
+                        action=f"Change setting to '{rule.recommended_value}'. Rationale: {rule.rationale}",
+                        estimated_impact="Compliance with security/performance baselines",
+                        reference_url=rule.reference_url
+                    ))
+                    
         return suggestions
 
 

@@ -23,6 +23,7 @@ from backend.app.analyzers.duplicate_detector import detect_duplicates
 from backend.app.analyzers.improvement_engine import generate_improvements
 from backend.app.exporters.csv_exporter import export_to_csv
 from backend.app.exporters.pdf_exporter import export_to_pdf
+from backend.app.exporters.action_generator import ActionGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -233,6 +234,66 @@ async def get_improvements(
     return improvements
 
 
+@router.get("/generate-fix/{suggestion_id}")
+async def generate_fix(suggestion_id: str):
+    """Generate a PowerShell fix script for a suggestion."""
+    if not _current_analysis:
+        raise HTTPException(status_code=404, detail="No analysis available.")
+    
+    # Find the suggestion
+    suggestion = next((i for i in _current_analysis.improvements if i.id == suggestion_id), None)
+    
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found.")
+        
+    script_content = ActionGenerator.generate_fix_script(suggestion)
+    
+    filename = f"fix_{suggestion_id}.ps1"
+    
+    return StreamingResponse(
+        io.StringIO(script_content),
+        media_type="application/powershell",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+@router.get("/generate-consolidation/{suggestion_id}")
+async def generate_consolidation(suggestion_id: str):
+    """Generate a PowerShell script to consolidate GPOs."""
+    if not _current_analysis:
+        raise HTTPException(status_code=404, detail="No analysis available.")
+    
+    # Find the suggestion
+    suggestion = next((i for i in _current_analysis.improvements if i.id == suggestion_id), None)
+    
+    if not suggestion:
+        raise HTTPException(status_code=404, detail="Suggestion not found.")
+    
+    if suggestion.category != "consolidation":
+        raise HTTPException(status_code=400, detail="This manual action is only for consolidation suggestions.")
+        
+    # Derive name from suggestion title or default
+    # Title format: "Consolidate '{prefix}' GPO group" or "Consolidate GPOs for '{cat}'"
+    new_name = "Consolidated-GPO"
+    if "Consolidate '" in suggestion.title:
+        # crude extraction
+        try:
+            part = suggestion.title.split("'")[1]
+            new_name = f"Policy-{part}-Consolidated"
+        except:
+            pass
+            
+    script_content = ActionGenerator.generate_consolidation_script(new_name, suggestion.affected_gpos)
+    
+    filename = f"consolidate_{suggestion_id}.ps1"
+    
+    return StreamingResponse(
+        io.StringIO(script_content),
+        media_type="application/powershell",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
 # =============================================================================
 # Export Endpoints
 # =============================================================================
@@ -273,6 +334,29 @@ async def export_pdf():
     except Exception as e:
         logger.error(f"PDF export error: {e}")
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+
+
+@router.get("/export/policy")
+async def export_policy():
+    """Export recommended policy settings as PowerShell GPO script."""
+    if not _current_analysis:
+        raise HTTPException(status_code=404, detail="No analysis available.")
+    
+    try:
+        from backend.app.exporters.policy_exporter import export_recommended_policy
+        
+        policy_content = export_recommended_policy(_current_analysis)
+        
+        filename = f"gpo_recommended_policy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.ps1"
+        
+        return StreamingResponse(
+            io.StringIO(policy_content),
+            media_type="application/powershell",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Policy export error: {e}")
+        raise HTTPException(status_code=500, detail=f"Policy generation failed: {str(e)}")
 
 
 # =============================================================================

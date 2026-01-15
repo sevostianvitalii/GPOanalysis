@@ -144,6 +144,19 @@ function ImprovementPanel({ improvements }) {
                 </div>
               </div>
 
+              {improvement.reference_url && (
+                <div className="reference-link-box">
+                  <a
+                    href={improvement.reference_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="reference-link"
+                  >
+                    📚 View Microsoft Documentation
+                  </a>
+                </div>
+              )}
+
               {improvement.estimated_impact && (
                 <div className="impact-box">
                   <span className="impact-label">Expected Impact:</span>
@@ -329,6 +342,41 @@ function ImprovementPanel({ improvements }) {
         .impact-label {
           font-weight: 600;
           color: var(--color-text-secondary);
+        }
+        
+        .reference-link-box {
+          margin-bottom: var(--space-md);
+          padding: var(--space-sm);
+          background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+          border-radius: var(--radius-sm);
+        }
+        
+        .reference-link {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-xs);
+          color: #1565c0;
+          text-decoration: none;
+          font-weight: 500;
+          font-size: 0.875rem;
+          transition: color var(--transition-fast);
+        }
+        
+        .reference-link:hover {
+          color: #0d47a1;
+          text-decoration: underline;
+        }
+        
+        [data-theme="dark"] .reference-link-box {
+          background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+        }
+        
+        [data-theme="dark"] .reference-link {
+          color: #90caf9;
+        }
+        
+        [data-theme="dark"] .reference-link:hover {
+          color: #bbdefb;
         }
         
         .impact-text {

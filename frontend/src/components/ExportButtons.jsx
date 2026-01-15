@@ -64,6 +64,20 @@ function ExportButtons() {
                 Export PDF
             </button>
 
+            <button
+                className="btn btn-success"
+                onClick={() => handleExport('policy')}
+                disabled={exporting !== null}
+                title="Export recommended policy as PowerShell script"
+            >
+                {exporting === 'policy' ? (
+                    <span className="spinner"></span>
+                ) : (
+                    '📋'
+                )}
+                Export Policy
+            </button>
+
             <style>{`
         .export-buttons {
           display: flex;
@@ -72,6 +86,16 @@ function ExportButtons() {
         
         .export-buttons .btn {
           white-space: nowrap;
+        }
+        
+        .btn-success {
+          background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+          color: white;
+          border: none;
+        }
+        
+        .btn-success:hover {
+          background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
         }
       `}</style>
         </div>

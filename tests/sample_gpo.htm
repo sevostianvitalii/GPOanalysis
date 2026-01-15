@@ -1,0 +1,141 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>Group Policy Report - SEC-Baseline-Computer</title>
+<style type="text/css">
+  body { font-family: Segoe UI, Tahoma, Verdana; font-size: 12px; }
+  .tableContainer { margin: 10px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 5px; text-align: left; border: 1px solid #ddd; }
+  th { background-color: #eee; }
+  h1, h2, h3 { margin: 10px 0; }
+  .rsopDocToc { background: #f5f5f5; padding: 10px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<h1>Group Policy Report</h1>
+<div class="rsopDocToc">
+  <h3>Table of Contents</h3>
+  <ul>
+    <li><a href="#gpoInfo">GPO Information</a></li>
+    <li><a href="#computerConfig">Computer Configuration</a></li>
+    <li><a href="#userConfig">User Configuration</a></li>
+  </ul>
+</div>
+
+<h2 id="gpoInfo">GPO Information</h2>
+<table class="gpoInfoTable">
+  <tr><th>Name:</th><td>SEC-Baseline-Computer</td></tr>
+  <tr><th>Domain:</th><td>contoso.local</td></tr>
+  <tr><th>Unique ID:</th><td>{31B2F340-016D-11D2-945F-00C04FB984F9}</td></tr>
+  <tr><th>Created:</th><td>01/15/2026 10:00:00 AM</td></tr>
+  <tr><th>Modified:</th><td>01/15/2026 11:30:00 AM</td></tr>
+  <tr><th>Owner:</th><td>CONTOSO\Domain Admins</td></tr>
+</table>
+
+<h2 id="computerConfig">Computer Configuration (Enabled)</h2>
+
+<h3>Security Settings</h3>
+<h4>Account Policies/Password Policy</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Minimum password length</td><td>8 characters</td></tr>
+    <tr><td>Maximum password age</td><td>90 days</td></tr>
+    <tr><td>Password must meet complexity requirements</td><td>Enabled</td></tr>
+    <tr><td>Enforce password history</td><td>24 passwords remembered</td></tr>
+    <tr><td>Store passwords using reversible encryption</td><td>Disabled</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Account Policies/Account Lockout Policy</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Account lockout threshold</td><td>10 invalid logon attempts</td></tr>
+    <tr><td>Account lockout duration</td><td>30 minutes</td></tr>
+    <tr><td>Reset account lockout counter after</td><td>30 minutes</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>Local Policies/Security Options</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Accounts: Administrator account status</td><td>Enabled</td></tr>
+    <tr><td>Accounts: Guest account status</td><td>Disabled</td></tr>
+    <tr><td>Interactive logon: Do not display last user name</td><td>Enabled</td></tr>
+    <tr><td>User Account Control: Run all administrators in Admin Approval Mode</td><td>Enabled</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Administrative Templates</h3>
+<h4>Windows Components/Windows Defender Antivirus</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>State</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Turn off Windows Defender Antivirus</td><td>Disabled</td><td></td></tr>
+    <tr><td>Configure real-time protection</td><td>Enabled</td><td>Monitoring both directions</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>System/Group Policy</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>State</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Always wait for the network at computer startup and logon</td><td>Enabled</td><td></td></tr>
+    <tr><td>Specify startup policy processing wait time</td><td>Enabled</td><td>120 seconds</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="userConfig">User Configuration (Enabled)</h2>
+
+<h3>Administrative Templates</h3>
+<h4>Control Panel</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>State</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Prohibit access to Control Panel and PC settings</td><td>Not Configured</td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h4>System/Ctrl+Alt+Del Options</h4>
+<div class="tableContainer">
+<table class="rsopTable">
+  <thead>
+    <tr><th>Policy</th><th>State</th><th>Setting</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Remove Task Manager</td><td>Enabled</td><td></td></tr>
+    <tr><td>Remove Change Password</td><td>Disabled</td><td></td></tr>
+  </tbody>
+</table>
+</div>
+
+</body>
+</html>
