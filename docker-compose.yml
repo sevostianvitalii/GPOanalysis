@@ -1,0 +1,35 @@
+# =============================================================================
+# GPO Analysis Tool - Docker Compose Configuration
+# =============================================================================
+# Usage:
+#   Development:  docker compose up --build
+#   Production:   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# =============================================================================
+
+services:
+  gpo-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gpo-analyzer
+    ports:
+      - "8080:80"
+    volumes:
+      # Persist uploaded GPO files
+      - gpo_uploads:/app/uploads
+      # Persist exported reports
+      - gpo_exports:/app/exports
+    environment:
+      - LOG_LEVEL=info
+      - MAX_UPLOAD_SIZE=50MB
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/api/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  gpo_uploads:
+  gpo_exports:
