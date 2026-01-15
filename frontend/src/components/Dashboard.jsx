@@ -101,8 +101,16 @@ function Dashboard({ analysis }) {
 
             {/* GPO List */}
             <div className="card">
-                <div className="card-header">
+                <div className="card-header flex-between">
                     <h3>Analyzed GPOs ({analysis.gpos?.length || 0})</h3>
+                    <a
+                        href="https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/security-policy-settings"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm link"
+                    >
+                        📚 Microsoft Security Baselines
+                    </a>
                 </div>
                 <div className="table-container">
                     <table>
@@ -115,7 +123,7 @@ function Dashboard({ analysis }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {analysis.gpos?.slice(0, 10).map((gpo, i) => (
+                            {analysis.gpos?.map((gpo, i) => (
                                 <tr key={i}>
                                     <td className="font-semibold">{gpo.name}</td>
                                     <td>{gpo.domain || 'N/A'}</td>
@@ -126,17 +134,36 @@ function Dashboard({ analysis }) {
                         </tbody>
                     </table>
                 </div>
-                {analysis.gpos?.length > 10 && (
-                    <p className="text-center text-muted mt-md text-sm">
-                        + {analysis.gpos.length - 10} more GPOs
-                    </p>
-                )}
             </div>
 
             <style>{`
         .health-display {
           text-align: center;
           padding: var(--space-lg);
+        }
+        
+        /* ... existing styles ... */
+        
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+        }
+        
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .link {
+            color: var(--color-primary);
+            text-decoration: none;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
         }
         
         .health-circle {

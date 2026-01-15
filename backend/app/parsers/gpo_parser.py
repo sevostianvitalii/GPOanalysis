@@ -394,40 +394,51 @@ class GPOParser:
         settings = []
         
         for child in element:
-            tag_name = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+            # Get local tag name (ignore namespace)
+            tag_name = self._get_local_tag(child.tag)
             
             # Build category path
             current_category = f"{category_path}/{tag_name}" if category_path else tag_name
             
-            # Check if this is a policy setting node
-            name_child = child.find('.//Name') or child.find('.//SettingName')
-            state_child = child.find('.//State') or child.find('.//Enabled')
-            value_child = child.find('.//Value') or child.find('.//Data')
+            # Check if this child ITSELF is a setting (has Name/SettingName property)
+            # We look for DIRECT children with these names to avoid finding nested settings
+            name_elem = self._find_child_by_local_name(child, ['Name', 'SettingName'])
             
-            if name_child is not None and name_child.text:
-                state = PolicyState.NOT_CONFIGURED
-                if state_child is not None and state_child.text:
-                    state = self._parse_state(state_child.text)
+            if name_elem is not None and name_elem.text:
+                # It's a setting!
+                state_elem = self._find_child_by_local_name(child, ['State', 'Enabled'])
+                value_elem = self._find_child_by_local_name(child, ['Value', 'Data'])
                 
-                value = value_child.text if value_child is not None else None
+                state = PolicyState.NOT_CONFIGURED
+                if state_elem is not None and state_elem.text:
+                    state = self._parse_state(state_elem.text)
+                
+                value = value_elem.text if value_elem is not None else None
                 
                 # Look for registry path
                 reg_path = None
                 reg_value = None
-                reg_elem = child.find('.//RegistryValue')
+                
+                # Check RegistryValue container
+                reg_elem = self._find_child_by_local_name(child, ['RegistryValue'])
                 if reg_elem is not None:
-                    reg_path = reg_elem.get('path') or reg_elem.find('.//KeyPath')
-                    if isinstance(reg_path, etree._Element):
-                        reg_path = reg_path.text
-                    reg_value = reg_elem.get('valueName') or reg_elem.find('.//ValueName')
-                    if isinstance(reg_value, etree._Element):
-                        reg_value = reg_value.text
+                    # Registry info might be in attributes or children
+                    reg_path = reg_elem.get('path')
+                    reg_value = reg_elem.get('valueName')
+                    
+                    if not reg_path:
+                        kp = self._find_child_by_local_name(reg_elem, ['KeyPath'])
+                        if kp is not None: reg_path = kp.text
+                        
+                    if not reg_value:
+                        vn = self._find_child_by_local_name(reg_elem, ['ValueName'])
+                        if vn is not None: reg_value = vn.text
                 
                 settings.append(PolicySetting(
                     gpo_id=gpo_id,
                     gpo_name=gpo_name,
-                    category=current_category,
-                    name=name_child.text,
+                    category=category_path or "General", # Use parent path as category
+                    name=name_elem.text,
                     state=state,
                     value=value,
                     registry_path=reg_path,
@@ -435,12 +446,27 @@ class GPOParser:
                     scope=scope
                 ))
             
-            # Recurse into children
+            # Recurse into children to find more settings
+            # (A setting node might also contain other settings in some schemas, 
+            # or it might be a container like 'ExtensionData' that isn't a setting itself)
             settings.extend(self._extract_policy_nodes_xml(
                 child, gpo_id, gpo_name, scope, current_category
             ))
         
         return settings
+
+    def _get_local_tag(self, tag: str) -> str:
+        """Strip namespace from tag."""
+        if '}' in tag:
+            return tag.split('}')[-1]
+        return tag
+
+    def _find_child_by_local_name(self, element, local_names: list[str]):
+        """Find a direct child with a matching local tag name (ignoring namespace)."""
+        for child in element:
+            if self._get_local_tag(child.tag) in local_names:
+                return child
+        return None
     
     def _parse_state(self, state_str: str) -> PolicyState:
         """Parse a state string to PolicyState enum."""
