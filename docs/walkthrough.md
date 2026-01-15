@@ -44,9 +44,17 @@ The container image has been successfully pushed to GHCR.
 5.  **Tagging**: Configured GitHub Actions to automatically push the `latest` tag for the `main` branch.
 6.  **Nginx Config**: Fixed startup crash by changing user to `www-data` and routing logs to stdout/stderr.
 
+7.  **Podman/Rootless Compatibility**: Updated Nginx to listen on port 8080 (instead of 80) and use `/tmp` for all temporary files/logs to resolve startup failures in rootless container environments.
+
 ## Verification
 
-###connectivity Check
+### Deployment Check
+Verified that the container configuration is now compatible with rootless Podman execution:
+- Nginx runs on unprivileged port 8080.
+- PID and temp paths are writable (/tmp).
+- Dockerfile exposes port 8080.
+
+### Connectivity Check
 I ran `git push --dry-run` to verify that the authentication is working correctly.
 ```bash
 $ git push --dry-run
