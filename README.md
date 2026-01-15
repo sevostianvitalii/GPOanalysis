@@ -16,18 +16,25 @@ A cross-platform, containerized tool for analyzing Active Directory Group Policy
 
 ## Quick Start
 
-### Using Docker
+### 🐳 Run with Container (Recommended)
 
+#### Option A: Docker
 ```bash
-# Clone the repository
-git clone https://github.com/sevostianvitalii/GPOanalysis.git
-cd GPOanalysis
-
-# Build and run
+# Build and run with Docker Compose
 docker compose up --build
-
-# Access the UI at http://localhost:8080
 ```
+
+#### Option B: Podman
+```bash
+# Build and run with Podman Compose (if installed)
+podman-compose up --build
+
+# OR manual build and run with Podman
+podman build -t gpo-analyzer .
+podman run -d -p 8080:80 gpo-analyzer
+```
+
+In both cases, access the UI at: **http://localhost:8080**
 
 # Access the UI at http://localhost:8080
 ```
