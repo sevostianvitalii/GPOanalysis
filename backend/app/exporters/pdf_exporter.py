@@ -29,7 +29,7 @@ class PDFExporter:
         html = HTML(string=html_content)
         css = CSS(string=css_content, font_config=self.font_config)
         
-        pdf_bytes = html.write_pdf(stylesheets=[css], font_config=self.font_config)
+        pdf_bytes = html.write_pdf(stylesheets=[css])
         
         logger.info("PDF report generated successfully")
         return pdf_bytes

@@ -1,113 +1,161 @@
 import { useState } from 'react'
 
 function ImprovementPanel({ improvements }) {
-    const [selectedCategory, setSelectedCategory] = useState('all')
+  const [selectedCategory, setSelectedCategory] = useState('all')
 
-    const categories = ['all', 'consolidation', 'security', 'performance', 'naming', 'cleanup']
+  const categories = ['all', 'consolidation', 'security', 'performance', 'naming', 'cleanup']
 
-    const filteredImprovements = selectedCategory === 'all'
-        ? improvements
-        : improvements.filter(i => i.category === selectedCategory)
+  const filteredImprovements = selectedCategory === 'all'
+    ? improvements
+    : improvements.filter(i => i.category === selectedCategory)
 
-    const getCategoryIcon = (category) => {
-        const icons = {
-            consolidation: '🔗',
-            security: '🔒',
-            performance: '⚡',
-            naming: '🏷️',
-            cleanup: '🧹',
-            organization: '📂'
-        }
-        return icons[category] || '💡'
+  const getCategoryIcon = (category) => {
+    const icons = {
+      consolidation: '🔗',
+      security: '🔒',
+      performance: '⚡',
+      naming: '🏷️',
+      cleanup: '🧹',
+      organization: '📂'
     }
+    return icons[category] || '💡'
+  }
 
-    if (improvements.length === 0) {
-        return (
-            <div className="empty-state">
-                <div className="empty-state-icon">🎉</div>
-                <h3 className="empty-state-title">Great Job!</h3>
-                <p className="empty-state-text">
-                    Your GPO configuration follows best practices. No improvements suggested.
-                </p>
-            </div>
-        )
+  const handleAction = async (id, type) => {
+    try {
+      const endpoint = type === 'consolidation'
+        ? `/api/generate-consolidation/${id}`
+        : `/api/generate-fix/${id}`
+
+      const response = await fetch(endpoint)
+
+      if (!response.ok) throw new Error('Generation failed')
+
+      const blob = await response.blob()
+      const filename = response.headers
+        .get('content-disposition')
+        ?.match(/filename=(.+)/)?.[1] || `script.ps1`
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+    } catch (error) {
+      console.error('Action error:', error)
+      alert('Failed to generate script.')
     }
+  }
 
+  if (improvements.length === 0) {
     return (
-        <div className="improvements-container">
-            {/* Category Filter */}
-            <div className="category-filter">
-                {categories.map(cat => {
-                    const count = cat === 'all'
-                        ? improvements.length
-                        : improvements.filter(i => i.category === cat).length
+      <div className="empty-state">
+        <div className="empty-state-icon">🎉</div>
+        <h3 className="empty-state-title">Great Job!</h3>
+        <p className="empty-state-text">
+          Your GPO configuration follows best practices. No improvements suggested.
+        </p>
+      </div>
+    )
+  }
 
-                    if (cat !== 'all' && count === 0) return null
+  return (
+    <div className="improvements-container">
+      {/* Category Filter */}
+      <div className="category-filter">
+        {categories.map(cat => {
+          const count = cat === 'all'
+            ? improvements.length
+            : improvements.filter(i => i.category === cat).length
 
-                    return (
-                        <button
-                            key={cat}
-                            className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
-                            onClick={() => setSelectedCategory(cat)}
-                        >
-                            {cat !== 'all' && <span className="cat-icon">{getCategoryIcon(cat)}</span>}
-                            <span className="cat-name">{cat === 'all' ? 'All' : cat}</span>
-                            <span className="cat-count">{count}</span>
-                        </button>
-                    )
-                })}
+          if (cat !== 'all' && count === 0) return null
+
+          return (
+            <button
+              key={cat}
+              className={`category-btn ${selectedCategory === cat ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              {cat !== 'all' && <span className="cat-icon">{getCategoryIcon(cat)}</span>}
+              <span className="cat-name">{cat === 'all' ? 'All' : cat}</span>
+              <span className="cat-count">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Improvements List */}
+      <div className="improvements-list">
+        {filteredImprovements.map((improvement, index) => (
+          <div key={improvement.id || index} className="improvement-card">
+            <div className="improvement-header">
+              <span className="improvement-icon">
+                {getCategoryIcon(improvement.category)}
+              </span>
+              <div className="improvement-title-area">
+                <h4>{improvement.title}</h4>
+                <div className="improvement-meta">
+                  <span className={`badge badge-${improvement.severity}`}>
+                    {improvement.severity?.toUpperCase()}
+                  </span>
+                  <span className="category-label">{improvement.category}</span>
+                </div>
+              </div>
             </div>
 
-            {/* Improvements List */}
-            <div className="improvements-list">
-                {filteredImprovements.map((improvement, index) => (
-                    <div key={improvement.id || index} className="improvement-card">
-                        <div className="improvement-header">
-                            <span className="improvement-icon">
-                                {getCategoryIcon(improvement.category)}
-                            </span>
-                            <div className="improvement-title-area">
-                                <h4>{improvement.title}</h4>
-                                <div className="improvement-meta">
-                                    <span className={`badge badge-${improvement.severity}`}>
-                                        {improvement.severity?.toUpperCase()}
-                                    </span>
-                                    <span className="category-label">{improvement.category}</span>
-                                </div>
-                            </div>
-                        </div>
+            <div className="improvement-content">
+              <p className="improvement-desc">{improvement.description}</p>
 
-                        <div className="improvement-content">
-                            <p className="improvement-desc">{improvement.description}</p>
+              {improvement.affected_gpos?.length > 0 && (
+                <div className="affected-area">
+                  <span className="label">Affected GPOs:</span>
+                  <div className="gpo-list">
+                    {improvement.affected_gpos.map((gpo, i) => (
+                      <span key={i} className="gpo-pill">{gpo}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                            {improvement.affected_gpos?.length > 0 && (
-                                <div className="affected-area">
-                                    <span className="label">Affected GPOs:</span>
-                                    <div className="gpo-list">
-                                        {improvement.affected_gpos.map((gpo, i) => (
-                                            <span key={i} className="gpo-pill">{gpo}</span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+              <div className="action-box">
+                <div className="action-label">🎯 Recommended Action</div>
+                <p>{improvement.action}</p>
 
-                            <div className="action-box">
-                                <div className="action-label">🎯 Recommended Action</div>
-                                <p>{improvement.action}</p>
-                            </div>
+                <div className="action-buttons">
+                  {improvement.category === 'consolidation' ? (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleAction(improvement.id, 'consolidation')}
+                    >
+                      📥 Download Consolidation Script
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-sm btn-primary"
+                      onClick={() => handleAction(improvement.id, 'fix')}
+                    >
+                      🛠️ Download Fix Script
+                    </button>
+                  )}
+                </div>
+              </div>
 
-                            {improvement.estimated_impact && (
-                                <div className="impact-box">
-                                    <span className="impact-label">Expected Impact:</span>
-                                    <span className="impact-text">{improvement.estimated_impact}</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                ))}
+              {improvement.estimated_impact && (
+                <div className="impact-box">
+                  <span className="impact-label">Expected Impact:</span>
+                  <span className="impact-text">{improvement.estimated_impact}</span>
+                </div>
+              )}
             </div>
+          </div>
+        ))}
+      </div>
 
-            <style>{`
+      <style>{`
         .category-filter {
           display: flex;
           flex-wrap: wrap;
@@ -257,6 +305,16 @@ function ImprovementPanel({ improvements }) {
         .action-box p {
           margin: 0;
           font-size: 0.875rem;
+          margin-bottom: var(--space-sm);
+        }
+        
+        .action-buttons {
+          margin-top: var(--space-md);
+        }
+        
+        .btn-sm {
+          padding: 4px 12px;
+          font-size: 0.75rem;
         }
         
         .impact-box {
@@ -277,8 +335,8 @@ function ImprovementPanel({ improvements }) {
           color: var(--color-text);
         }
       `}</style>
-        </div>
-    )
+    </div>
+  )
 }
 
 export default ImprovementPanel

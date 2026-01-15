@@ -17,7 +17,8 @@ beautifulsoup4==4.12.3
 html5lib==1.1
 
 # PDF Generation
-weasyprint==61.0
+weasyprint==59.0
+pydyf==0.8.0
 
 # CSV/Data Processing
 pandas==2.2.0
