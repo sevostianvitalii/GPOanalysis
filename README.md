@@ -29,14 +29,20 @@ docker compose up --build
 # Access the UI at http://localhost:8080
 ```
 
-### Using Podman
+# Access the UI at http://localhost:8080
+```
+
+### Using GitHub Container Registry (Recommended for Mac/Apple Silicon)
+
+Since `docker.io` might be blocked or require configuration, the easiest way to run the tool is pulling the pre-built image from GHCR. This image supports both Intel (`amd64`) and Apple Silicon (`arm64`) Macs.
 
 ```bash
-# Build the container
-podman build -t gpo-analyzer .
+# Pull the latest image
+podman pull ghcr.io/sevostianvitalii/gpoanalysis:latest
 
-# Run the container
-podman run -d -p 8080:80 --name gpo-analyzer gpo-analyzer
+# Run the container (detach mode, map port 8080)
+podman run -d -p 8080:80 --name gpo-analyzer ghcr.io/sevostianvitalii/gpoanalysis:latest
+```
 
 # Access the UI at http://localhost:8080
 ```

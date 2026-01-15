@@ -40,6 +40,9 @@ The container image has been successfully pushed to GHCR.
 1.  **Frontend Build**: Switched `npm ci` to `npm install` because `package-lock.json` was missing.
 2.  **Package Names**: Corrected `libgdk-pixbuf-2.0-0` (added missing hyphen) and broadened Pango dependencies.
 3.  **Dependency Conflict**: Fixed a version clash in `backend/requirements.txt` between `pytest` (downgraded to 7.4.4) and `pytest-asyncio`.
+4.  **Multi-Architecture Support**: Enabled `linux/amd64` and `linux/arm64` builds via QEMU to support Apple Silicon (M1/M2/M3).
+5.  **Tagging**: Configured GitHub Actions to automatically push the `latest` tag for the `main` branch.
+6.  **Nginx Config**: Fixed startup crash by changing user to `www-data` and routing logs to stdout/stderr.
 
 ## Verification
 
