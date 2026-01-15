@@ -41,6 +41,17 @@ podman run -d -p 8080:80 --name gpo-analyzer gpo-analyzer
 # Access the UI at http://localhost:8080
 ```
 
+### Using GitHub Container Registry (Pre-built Image)
+
+If you have issues building locally (e.g., `docker.io` is blocked), you can pull the pre-built image from GHCR:
+
+```bash
+podman pull ghcr.io/sevostianvitalii/gpoanalysis:latest
+podman run -d -p 8080:80 --name gpo-analyzer gpo-analyzer
+```
+
+For more details on the setup and manual build options, see the [Walkthrough](docs/walkthrough.md).
+
 ## Exporting GPO Reports
 
 The tool analyzes exported GPO files. Here's how to export from Windows:
