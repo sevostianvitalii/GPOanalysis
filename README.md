@@ -31,7 +31,7 @@ podman-compose up --build
 
 # OR manual build and run with Podman
 podman build -t gpo-analyzer .
-podman run -d -p 8080:80 gpo-analyzer
+podman run -d -p 8080:8080 gpo-analyzer
 ```
 
 In both cases, access the UI at: **http://localhost:8080**
