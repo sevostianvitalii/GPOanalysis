@@ -76,7 +76,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && mkdir -p /tmp/nginx/fastcgi_temp \
     && mkdir -p /tmp/nginx/uwsgi_temp \
     && mkdir -p /tmp/nginx/scgi_temp \
-    && chown -R 1001:0 /tmp/nginx \
     && chmod -R 777 /tmp/nginx
 
 # Copy Python packages from builder
