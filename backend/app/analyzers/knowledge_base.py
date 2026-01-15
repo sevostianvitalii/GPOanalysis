@@ -1,7 +1,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 from backend.app.models.knowledge import BestPracticeRule
 
