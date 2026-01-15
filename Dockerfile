@@ -70,7 +70,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /app/uploads /app/exports
+    && mkdir -p /app/uploads /app/exports \
+    && mkdir -p /tmp/nginx/client_temp \
+    && mkdir -p /tmp/nginx/proxy_temp \
+    && mkdir -p /tmp/nginx/fastcgi_temp \
+    && mkdir -p /tmp/nginx/uwsgi_temp \
+    && mkdir -p /tmp/nginx/scgi_temp \
+    && chown -R 1001:0 /tmp/nginx \
+    && chmod -R 777 /tmp/nginx
 
 # Copy Python packages from builder
 COPY --from=backend-builder /root/.local /root/.local
