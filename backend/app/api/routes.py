@@ -50,6 +50,11 @@ async def upload_gpo_files(files: list[UploadFile] = File(...)):
     """
     global _current_analysis, _uploaded_files
     
+    # Clear any previous analysis to ensure clean state
+    _current_analysis = None
+    _uploaded_files = []
+    
+    # Create new parser instance for this upload
     parser = GPOParser()
     all_gpos: list[GPOInfo] = []
     all_settings: list[PolicySetting] = []
@@ -167,7 +172,8 @@ async def clear_analysis():
     global _current_analysis, _uploaded_files
     _current_analysis = None
     _uploaded_files = []
-    return {"message": "Analysis cleared"}
+    logger.info("Analysis cleared, ready for new upload")
+    return {"message": "Analysis cleared", "success": True}
 
 
 # =============================================================================
@@ -330,7 +336,10 @@ async def export_csv():
     if not _current_analysis:
         raise HTTPException(status_code=404, detail="No analysis available.")
     
-    csv_content = export_to_csv(_current_analysis, combined=True)
+    # Use a copy to prevent state corruption
+    from copy import deepcopy
+    analysis_copy = deepcopy(_current_analysis)
+    csv_content = export_to_csv(analysis_copy, combined=True)
     
     filename = f"gpo_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     
@@ -348,7 +357,10 @@ async def export_pdf():
         raise HTTPException(status_code=404, detail="No analysis available.")
     
     try:
-        pdf_content = export_to_pdf(_current_analysis)
+        # Use a copy to prevent state corruption
+        from copy import deepcopy
+        analysis_copy = deepcopy(_current_analysis)
+        pdf_content = export_to_pdf(analysis_copy)
         
         filename = f"gpo_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
         
@@ -370,8 +382,11 @@ async def export_policy():
     
     try:
         from backend.app.exporters.policy_exporter import export_recommended_policy
+        from copy import deepcopy
         
-        policy_content = export_recommended_policy(_current_analysis)
+        # Use a copy to prevent state corruption
+        analysis_copy = deepcopy(_current_analysis)
+        policy_content = export_recommended_policy(analysis_copy)
         
         filename = f"gpo_recommended_policy_{datetime.now().strftime('%Y%m%d_%H%M%S')}.ps1"
         
