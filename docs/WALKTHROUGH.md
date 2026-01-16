@@ -72,8 +72,9 @@ Successfully implemented three new features:
 - **Selection**: Select specific GPOs to analyze.
 
 **How to use:**
-1. Go to "Library" tab.
-2. See all uploaded GPOs.
+1. Use "Upload" tab to add more GPOs at any time.
+2. Go to "Library" tab.
+3. See all uploaded GPOs.
 3. Select checkboxes.
 4. Click "Analyze Selected".
 5. Use "Delete" key to remove GPOs from library.

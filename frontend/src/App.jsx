@@ -126,6 +126,7 @@ function App() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'upload', label: 'Upload', icon: '📤' },
         { id: 'library', label: 'Library', icon: '📚' },
         { id: 'object-analysis', label: 'Object Lookup', icon: '🔍' },
     ]
@@ -203,6 +204,15 @@ function App() {
                             ) : (
                                 <Dashboard analysis={analysis} />
                             )
+                        )}
+
+                        {activeTab === 'upload' && (
+                            <div className="upload-tab-content">
+                                <FileUpload onUpload={handleUpload} loading={loading} />
+                                <p className="text-center text-muted mt-4">
+                                    New uploads will replace the current analysis view but are saved to the Library.
+                                </p>
+                            </div>
                         )}
 
                         {activeTab === 'library' && (
