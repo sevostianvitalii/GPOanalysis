@@ -65,7 +65,7 @@ podman pull ghcr.io/sevostianvitalii/gpoanalysis:latest
 podman run -d -p 8080:80 --name gpo-analyzer gpo-analyzer
 ```
 
-For more details on the setup and manual build options, see the [Walkthrough](docs/walkthrough.md).
+For more details on the setup and usage, see the [User Guide](docs/USER_GUIDE.md) and [Walkthrough](docs/walkthrough.md).
 
 ## Exporting GPO Reports
 
