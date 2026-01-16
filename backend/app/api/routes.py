@@ -16,7 +16,7 @@ from sqlmodel import Session, select
 from backend.app.models.gpo import (
     AnalysisResult, UploadResponse, GPOInfo, PolicySetting,
     ConflictReport, DuplicateReport, ImprovementSuggestion,
-    SeverityLevel, ExportFormat
+    SeverityLevel, ExportFormat, PolicyState
 )
 from backend.app.models.sql import StoredGPO, StoredSetting
 from backend.app.database import get_session, init_db
