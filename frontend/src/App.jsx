@@ -58,21 +58,44 @@ function App() {
         files.forEach(file => formData.append('files', file))
 
         try {
+            // Add timeout for large uploads (5 minutes)
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 min
+
             const res = await fetch('/api/upload', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                signal: controller.signal
             })
+
+            clearTimeout(timeoutId)
+
+            if (!res.ok) {
+                const error = await res.json().catch(() => ({ message: 'Upload failed' }))
+                throw new Error(error.message || `Server error: ${res.status}`)
+            }
+
             const result = await res.json()
 
             if (result.success) {
                 await fetchStats()
                 setActiveTab('dashboard')
             } else {
-                alert(result.message || 'Upload failed')
+                const errorMsg = result.message || 'Upload failed'
+                const detailedErrors = result.errors?.length > 0
+                    ? '\n\nDetails:\n' + result.errors.join('\n')
+                    : ''
+                alert(errorMsg + detailedErrors)
             }
         } catch (err) {
             console.error('Upload error:', err)
-            alert('Upload failed. Please try again.')
+            if (err.name === 'AbortError') {
+                alert('Upload timed out. Try uploading fewer files at once (e.g., 50-100 files).')
+            } else if (err.message.includes('Failed to fetch')) {
+                alert('Network error. Check your connection and try again.')
+            } else {
+                alert(`Upload failed: ${err.message}`)
+            }
         } finally {
             setLoading(false)
         }
@@ -87,8 +110,11 @@ function App() {
             setStats(null)
             setAnalysis(null)
             setActiveTab('dashboard')
+            // Fetch stats to ensure UI properly reflects cleared state
+            await fetchStats()
         } catch (err) {
             console.error('Clear error:', err)
+            alert('Failed to clear analysis')
         }
     }
 
