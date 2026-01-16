@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.app.api.routes import router
+from backend.app.database import init_db
 
 # Configure logging
 logging.basicConfig(
@@ -31,6 +32,7 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
     logger.info("Starting GPO Analysis Tool...")
+    init_db()
     UPLOADS_DIR.mkdir(exist_ok=True)
     EXPORTS_DIR.mkdir(exist_ok=True)
     logger.info(f"Uploads directory: {UPLOADS_DIR}")

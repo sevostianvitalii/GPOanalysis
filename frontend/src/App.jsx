@@ -7,6 +7,8 @@ import DuplicateList from './components/DuplicateList'
 import ImprovementPanel from './components/ImprovementPanel'
 import ExportButtons from './components/ExportButtons'
 import SaveLoadModal from './components/SaveLoadModal'
+import LibraryPanel from './components/LibraryPanel'
+import ObjectAnalysis from './components/ObjectAnalysis'
 
 function App() {
     const [theme, setTheme] = useState('light')
@@ -124,6 +126,8 @@ function App() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'library', label: 'Library', icon: '📚' },
+        { id: 'object-analysis', label: 'Object Lookup', icon: '🔍' },
         { id: 'conflicts', label: 'Conflicts', icon: '⚠️', count: analysis?.conflict_count },
         { id: 'duplicates', label: 'Duplicates', icon: '📋', count: analysis?.duplicate_count },
         { id: 'improvements', label: 'Improvements', icon: '💡', count: analysis?.improvement_count },
@@ -186,6 +190,16 @@ function App() {
                             <div className="tab-content animate-fade-in">
                                 {activeTab === 'dashboard' && (
                                     <Dashboard analysis={analysis} />
+                                )}
+                                {activeTab === 'library' && (
+                                    <LibraryPanel onAnalyze={(result) => {
+                                        setAnalysis(result)
+                                        // Update stats logic could be here, or auto-updated
+                                        setActiveTab('dashboard') // Or stay? Let's go to dashboard to see results
+                                    }} />
+                                )}
+                                {activeTab === 'object-analysis' && (
+                                    <ObjectAnalysis />
                                 )}
                                 {activeTab === 'conflicts' && (
                                     <ConflictTable conflicts={analysis?.conflicts || []} />

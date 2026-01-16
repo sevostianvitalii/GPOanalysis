@@ -6,17 +6,20 @@ import uuid
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query, Depends
 from fastapi.responses import StreamingResponse
 import io
+from sqlmodel import Session, select
 
 from backend.app.models.gpo import (
     AnalysisResult, UploadResponse, GPOInfo, PolicySetting,
     ConflictReport, DuplicateReport, ImprovementSuggestion,
     SeverityLevel, ExportFormat
 )
+from backend.app.models.sql import StoredGPO, StoredSetting
+from backend.app.database import get_session, init_db
 from backend.app.parsers.gpo_parser import GPOParser
 from backend.app.analyzers.conflict_detector import detect_conflicts
 from backend.app.analyzers.duplicate_detector import detect_duplicates
@@ -32,10 +35,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["GPO Analysis"])
 
-# In-memory storage for the current analysis session
-# In production, consider using Redis or a database
+# In-memory storage for the current analysis session (Backward Compatibility)
+# This mimics the old behavior where the user sees the result of what they just uploaded
 _current_analysis: Optional[AnalysisResult] = None
 _uploaded_files: list[dict] = []
+_current_session_gpo_ids: list[str] = [] # IDs of GPOs in current "session"
 
 
 # =============================================================================
@@ -43,19 +47,27 @@ _uploaded_files: list[dict] = []
 # =============================================================================
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_gpo_files(files: list[UploadFile] = File(...)):
+async def upload_gpo_files(
+    files: list[UploadFile] = File(...),
+    session: Session = Depends(get_session)
+):
     """
     Upload one or more GPO export files for analysis.
+    Files are parsed and stored in the database.
     
     Supported formats:
     - HTML/HTM (Get-GPOReport -ReportType HTML)
     - XML (Get-GPOReport -ReportType XML, gpresult /X)
     """
-    global _current_analysis, _uploaded_files
+    global _current_analysis, _uploaded_files, _current_session_gpo_ids
     
     # Clear any previous analysis to ensure clean state
+    # NOTE: In v3, we might want to allow appending, but for now we follow old behavior
+    # of "New Upload = New Analysis Session" unless we add an "Append" flag.
+    # To keep strict back-compat, we reset session.
     _current_analysis = None
     _uploaded_files = []
+    _current_session_gpo_ids = []
     
     # Create new parser instance for this upload
     parser = GPOParser()
@@ -100,6 +112,56 @@ async def upload_gpo_files(files: list[UploadFile] = File(...)):
                     file.filename or "unknown",
                     file.content_type or ""
                 )
+                
+                # --- DB PERSISTENCE START ---
+                for gpo in gpos:
+                    # Convert to SQL Model
+                    # Check if exists first to avoid Primary Key error or overwrite
+                    existing_gpo = session.get(StoredGPO, gpo.id)
+                    if existing_gpo:
+                        # Update? For now, we overwrite metadata but careful with settings
+                        # Simpler: Delete old and re-insert is often easier for full replace
+                        session.delete(existing_gpo)
+                        session.commit()
+                    
+                    stored_gpo = StoredGPO(
+                        id=gpo.id,
+                        name=gpo.name,
+                        domain=gpo.domain,
+                        created=gpo.created,
+                        modified=gpo.modified,
+                        owner=gpo.owner,
+                        computer_enabled=gpo.computer_enabled,
+                        user_enabled=gpo.user_enabled,
+                        source_file=gpo.source_file,
+                        links=[l.model_dump() for l in gpo.links] # Use setter logic if needed, but direct links_data assign via dict works
+                    )
+                    # Manually handle links setter if property not working in constructor directly (Pydantic/SQLModel quirk)
+                    stored_gpo.links = gpo.links 
+                    
+                    session.add(stored_gpo)
+                    
+                    # Store Settings
+                    # Filter settings for this GPO (parser returns flat list for file, but they have gpo_id)
+                    gpo_settings = [s for s in settings if s.gpo_id == gpo.id]
+                    for s in gpo_settings:
+                        stored_setting = StoredSetting(
+                            gpo_id=gpo.id,
+                            gpo_name=gpo.name,
+                            category=s.category,
+                            name=s.name,
+                            state=s.state.value,
+                            value=s.value,
+                            registry_path=s.registry_path,
+                            registry_value=s.registry_value,
+                            scope=s.scope
+                        )
+                        session.add(stored_setting)
+                    
+                    _current_session_gpo_ids.append(gpo.id)
+
+                session.commit()
+                # --- DB PERSISTENCE END ---
                 
                 all_gpos.extend(gpos)
                 all_settings.extend(settings)
@@ -494,3 +556,182 @@ async def delete_analysis(filename: str):
         raise HTTPException(status_code=404, detail=result.get("error", "Failed to delete analysis"))
     
     return result
+
+
+# =============================================================================
+# Library & Object Analysis Endpoints (v3)
+# =============================================================================
+
+@router.get("/library", response_model=List[dict])
+async def get_gpo_library(session: Session = Depends(get_session)):
+    """List all GPOs stored in the database."""
+    gpos = session.exec(select(StoredGPO)).all()
+    return [
+        {
+            "id": g.id,
+            "name": g.name,
+            "domain": g.domain,
+            "modified": g.modified,
+            "gpo_guid": g.id, 
+            "link_count": len(g.links) if g.links else 0,
+            "source": g.source_file
+        }
+        for g in gpos
+    ]
+
+@router.post("/analysis/start", response_model=AnalysisResult)
+async def start_analysis(
+    gpo_ids: List[str],
+    session: Session = Depends(get_session)
+):
+    """
+    Start a new analysis session with specific GPOs from the library.
+    """
+    global _current_analysis, _current_session_gpo_ids
+    
+    # Fetch selected GPOs
+    selected_gpos = []
+    selected_settings = []
+    
+    for gid in gpo_ids:
+        sgpo = session.get(StoredGPO, gid)
+        if sgpo:
+            gpo_info = GPOInfo(
+                id=sgpo.id,
+                name=sgpo.name,
+                domain=sgpo.domain,
+                created=sgpo.created,
+                modified=sgpo.modified,
+                owner=sgpo.owner,
+                computer_enabled=sgpo.computer_enabled,
+                user_enabled=sgpo.user_enabled,
+                source_file=sgpo.source_file,
+                links=sgpo.links
+            )
+            selected_gpos.append(gpo_info)
+            
+            ssettings = session.exec(select(StoredSetting).where(StoredSetting.gpo_id == gid)).all()
+            for ss in ssettings:
+                selected_settings.append(PolicySetting(
+                    gpo_id=ss.gpo_id,
+                    gpo_name=ss.gpo_name,
+                    category=ss.category,
+                    name=ss.name,
+                    state=PolicyState(ss.state) if ss.state else PolicyState.NOT_CONFIGURED,
+                    value=ss.value,
+                    registry_path=ss.registry_path,
+                    registry_value=ss.registry_value,
+                    scope=ss.scope
+                ))
+
+    if not selected_gpos:
+        raise HTTPException(status_code=404, detail="No valid GPOs found for the provided IDs.")
+
+    # Run Analysis
+    conflicts = detect_conflicts(selected_gpos, selected_settings)
+    duplicates = detect_duplicates(selected_gpos, selected_settings)
+    improvements = generate_improvements(selected_gpos, selected_settings)
+    
+     # Calculate severity counts
+    critical_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.CRITICAL)
+    high_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.HIGH)
+    medium_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.MEDIUM)
+    low_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.LOW)
+    
+    # Update global state
+    _current_session_gpo_ids = gpo_ids
+    _current_analysis = AnalysisResult(
+        analyzed_at=datetime.now(),
+        gpo_count=len(selected_gpos),
+        setting_count=len(selected_settings),
+        gpos=selected_gpos,
+        settings=selected_settings,
+        conflicts=conflicts,
+        duplicates=duplicates,
+        improvements=improvements,
+        conflict_count=len(conflicts),
+        duplicate_count=len(duplicates),
+        improvement_count=len(improvements),
+        critical_issues=critical_count,
+        high_issues=high_count,
+        medium_issues=medium_count,
+        low_issues=low_count
+    )
+    
+    return _current_analysis
+
+
+@router.get("/analysis/object")
+async def analyze_object(
+    query: str = Query(..., description="Computer Name, User Name, or OU DN"),
+    type: str = Query("auto", description="auto, computer, user, ou"),
+    session: Session = Depends(get_session)
+):
+    """
+    Find policies applied to a specific object.
+    1. Direct Match: Check if we have a gpresult for object.
+    2. Link Match: Check if any GPO is linked to the provided OU.
+    """
+    results = {
+        "query": query,
+        "match_type": "none",
+        "applied_gpos": [],
+        "effective_settings": []
+    }
+    
+    stmt = select(StoredGPO).where(StoredGPO.source_file.contains(query) | StoredGPO.name.contains(query))
+    direct_matches = session.exec(stmt).all()
+    
+    if direct_matches:
+        results["match_type"] = "report_match"
+        results["matches"] = [{"id": g.id, "name": g.name, "source": g.source_file} for g in direct_matches]
+        for match in direct_matches:
+            results["applied_gpos"].append({
+                "id": match.id,
+                "name": match.name,
+                "reason": "Direct Report Match"
+            })
+            
+    if "dc=" in query.lower() or "ou=" in query.lower():
+        all_gpos = session.exec(select(StoredGPO)).all()
+        start_node = query.lower().strip()
+        
+        for gpo in all_gpos:
+            for link in gpo.links:
+                if link.location.lower() == start_node and link.enabled:
+                    results["applied_gpos"].append({
+                        "id": gpo.id,
+                        "name": gpo.name,
+                        "location": link.location,
+                        "enforced": link.enforced,
+                        "reason": f"Linked to {link.location}"
+                    })
+        
+        if results["applied_gpos"] and results["match_type"] == "none":
+            results["match_type"] = "link_match"
+
+    return results
+
+@router.get("/export/object")
+async def export_object_analysis(
+    query: str,
+    format: ExportFormat = ExportFormat.CSV,
+    session: Session = Depends(get_session)
+):
+    """Export the object analysis results."""
+    analysis_data = await analyze_object(query, "auto", session)
+    
+    if format == ExportFormat.CSV:
+        output = io.StringIO()
+        output.write("GPO Name,Reason,Location,Enforced\n")
+        for gpo in analysis_data["applied_gpos"]:
+            output.write(f"{gpo['name']},{gpo.get('reason','')},{gpo.get('location','')},{gpo.get('enforced','')}\n")
+        
+        filename = f"object_analysis_{query}.csv"
+        return StreamingResponse(
+            io.StringIO(output.getvalue()),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    else:
+        return {"error": "PDF export for object analysis not yet implemented"}

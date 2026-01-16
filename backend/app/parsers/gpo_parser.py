@@ -132,6 +132,9 @@ class GPOParser:
         
         # Extract metadata from various HTML structures
         self._extract_metadata_html(soup, gpo_info)
+        # Update ID in case it was found in metadata
+        gpo_id = gpo_info.id
+        
         gpos.append(gpo_info)
         
         # Extract policy settings from tables
@@ -198,6 +201,53 @@ class GPOParser:
                             gpo_info.owner = value
                         elif field == 'guid' and value:
                             gpo_info.id = value
+        
+        # Extract links (Links to Site, Domain, OU)
+        self._extract_links_html(soup, gpo_info)
+
+    def _extract_links_html(self, soup: BeautifulSoup, gpo_info: GPOInfo) -> None:
+        """Extract GPO links (SOMs) from HTML tables."""
+        # Find the "Links" section or table
+        # Structure varies, but often under a "Links" header or div
+        
+        # Method 1: Look for table with headers "Location", "Enforced", "Link Enabled"
+        for table in soup.find_all('table'):
+            headers = [th.get_text(strip=True).lower() for th in table.find_all('th')]
+            if 'location' in headers and ('enforced' in headers or 'link enabled' in headers):
+                # This is likely the links table
+                rows = table.find_all('tr')[1:] # Skip header
+                for row in rows:
+                    cells = row.find_all('td')
+                    if len(cells) >= 3:
+                        # Map headers to indices
+                        loc_idx = -1
+                        enforced_idx = -1
+                        enabled_idx = -1
+                        
+                        for i, h in enumerate(headers):
+                            if 'location' in h: loc_idx = i
+                            elif 'enforced' in h: enforced_idx = i
+                            elif 'link enabled' in h or 'enabled' in h: enabled_idx = i
+                        
+                        if loc_idx != -1:
+                            location = cells[loc_idx].get_text(strip=True)
+                            enforced = False
+                            enabled = True
+                            
+                            if enforced_idx != -1:
+                                enforced_text = cells[enforced_idx].get_text(strip=True).lower()
+                                enforced = enforced_text in ['yes', 'true', 'enforced']
+                                
+                            if enabled_idx != -1:
+                                enabled_text = cells[enabled_idx].get_text(strip=True).lower()
+                                enabled = enabled_text in ['yes', 'true', 'enabled']
+                            
+                            if location:
+                                gpo_info.links.append(GPOLink(
+                                    location=location,
+                                    enforced=enforced,
+                                    enabled=enabled
+                                ))
     
     def _extract_settings_html(self, soup: BeautifulSoup, gpo_id: str, gpo_name: str) -> list[PolicySetting]:
         """Extract policy settings from HTML tables and div-based structures."""

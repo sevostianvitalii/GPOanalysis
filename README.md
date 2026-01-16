@@ -7,7 +7,9 @@ A cross-platform, containerized tool for analyzing Active Directory Group Policy
 
 ## Features
 
-- **🔍 Conflict Detection** - Find contradicting policy settings across GPOs
+- **💾 Persistent Library** - Store GPOs in a local database for historical analysis
+- **🔍 Object-Based Analysis** - Find policies applied to specific Users, Computers, or OUs
+- **⚔️ Conflict Detection** - Find contradicting policy settings across GPOs
 - **📋 Duplicate Detection** - Identify redundant policies and GPOs
 - **💡 Improvement Suggestions** - Get best practice recommendations
 - **📊 Export Reports** - Download analysis as CSV or PDF
@@ -117,6 +119,7 @@ gpresult /H report.html
 │           ▼                                                  │
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │  FastAPI Backend (Port 8000)                             ││
+│  │  • SQLite Database (Peristent Storage)                   ││
 │  │  • GPO Parser (HTML/XML)                                 ││
 │  │  • Conflict Detector                                     ││
 │  │  • Duplicate Detector                                    ││
@@ -131,6 +134,9 @@ gpresult /H report.html
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/upload` | Upload GPO export files |
+| GET | `/api/library` | List stored GPOs |
+| POST | `/api/analysis/start` | Analyze selected GPOs |
+| GET | `/api/analysis/object` | Lookup effective policies |
 | GET | `/api/stats` | Get analysis statistics |
 | GET | `/api/analysis` | Get full analysis result |
 | GET | `/api/gpos` | List analyzed GPOs |
@@ -139,6 +145,7 @@ gpresult /H report.html
 | GET | `/api/improvements` | Get improvement suggestions |
 | GET | `/api/export/csv` | Download CSV report |
 | GET | `/api/export/pdf` | Download PDF report |
+| GET | `/api/export/object` | Download Object analysis (CSV) |
 
 ## Development
 
@@ -170,6 +177,7 @@ GPOanalysis/
 │   │   ├── models/        # Pydantic data models
 │   │   ├── parsers/       # HTML/XML GPO parsers
 │   │   └── main.py        # FastAPI application
+│   └── data/              # SQLite database storage
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
