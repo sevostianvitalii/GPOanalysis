@@ -579,6 +579,22 @@ async def get_gpo_library(session: Session = Depends(get_session)):
         for g in gpos
     ]
 
+
+@router.delete("/library/{gpo_id}")
+async def delete_gpo_from_library(
+    gpo_id: str,
+    session: Session = Depends(get_session)
+):
+    """Delete a GPO from the library."""
+    gpo = session.get(StoredGPO, gpo_id)
+    if not gpo:
+        raise HTTPException(status_code=404, detail="GPO not found")
+    
+    session.delete(gpo)
+    session.commit()
+    return {"success": True, "message": "GPO deleted"}
+
+
 @router.post("/analysis/start", response_model=AnalysisResult)
 async def start_analysis(
     gpo_ids: List[str],
@@ -589,76 +605,93 @@ async def start_analysis(
     """
     global _current_analysis, _current_session_gpo_ids
     
-    # Fetch selected GPOs
-    selected_gpos = []
-    selected_settings = []
-    
-    for gid in gpo_ids:
-        sgpo = session.get(StoredGPO, gid)
-        if sgpo:
-            gpo_info = GPOInfo(
-                id=sgpo.id,
-                name=sgpo.name,
-                domain=sgpo.domain,
-                created=sgpo.created,
-                modified=sgpo.modified,
-                owner=sgpo.owner,
-                computer_enabled=sgpo.computer_enabled,
-                user_enabled=sgpo.user_enabled,
-                source_file=sgpo.source_file,
-                links=[l.model_dump() for l in sgpo.links]
-            )
-            selected_gpos.append(gpo_info)
-            
-            ssettings = session.exec(select(StoredSetting).where(StoredSetting.gpo_id == gid)).all()
-            for ss in ssettings:
-                selected_settings.append(PolicySetting(
-                    gpo_id=ss.gpo_id,
-                    gpo_name=ss.gpo_name,
-                    category=ss.category,
-                    name=ss.name,
-                    state=PolicyState(ss.state) if ss.state else PolicyState.NOT_CONFIGURED,
-                    value=ss.value,
-                    registry_path=ss.registry_path,
-                    registry_value=ss.registry_value,
-                    scope=ss.scope
-                ))
+    try:
+        # Fetch selected GPOs
+        selected_gpos = []
+        selected_settings = []
+        
+        for gid in gpo_ids:
+            sgpo = session.get(StoredGPO, gid)
+            if sgpo:
+                gpo_info = GPOInfo(
+                    id=sgpo.id,
+                    name=sgpo.name,
+                    domain=sgpo.domain,
+                    created=sgpo.created,
+                    modified=sgpo.modified,
+                    owner=sgpo.owner,
+                    computer_enabled=sgpo.computer_enabled,
+                    user_enabled=sgpo.user_enabled,
+                    source_file=sgpo.source_file,
+                    links=[l.model_dump() for l in sgpo.links]
+                )
+                selected_gpos.append(gpo_info)
+                
+                ssettings = session.exec(select(StoredSetting).where(StoredSetting.gpo_id == gid)).all()
+                for ss in ssettings:
+                    # Robust enum conversion
+                    try:
+                        state_val = PolicyState(ss.state)
+                    except ValueError:
+                        # Log warning, fallback
+                        logger.warning(f"Invalid policy state '{ss.state}' for setting {ss.name}, defaulting to NOT_CONFIGURED")
+                        state_val = PolicyState.NOT_CONFIGURED
 
-    if not selected_gpos:
-        raise HTTPException(status_code=404, detail="No valid GPOs found for the provided IDs.")
+                    selected_settings.append(PolicySetting(
+                        gpo_id=ss.gpo_id,
+                        gpo_name=ss.gpo_name,
+                        category=ss.category,
+                        name=ss.name,
+                        state=state_val,
+                        value=ss.value,
+                        registry_path=ss.registry_path,
+                        registry_value=ss.registry_value,
+                        scope=ss.scope
+                    ))
 
-    # Run Analysis
-    conflicts = detect_conflicts(selected_gpos, selected_settings)
-    duplicates = detect_duplicates(selected_gpos, selected_settings)
-    improvements = generate_improvements(selected_gpos, selected_settings)
-    
-     # Calculate severity counts
-    critical_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.CRITICAL)
-    high_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.HIGH)
-    medium_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.MEDIUM)
-    low_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.LOW)
-    
-    # Update global state
-    _current_session_gpo_ids = gpo_ids
-    _current_analysis = AnalysisResult(
-        analyzed_at=datetime.now(),
-        gpo_count=len(selected_gpos),
-        setting_count=len(selected_settings),
-        gpos=selected_gpos,
-        settings=selected_settings,
-        conflicts=conflicts,
-        duplicates=duplicates,
-        improvements=improvements,
-        conflict_count=len(conflicts),
-        duplicate_count=len(duplicates),
-        improvement_count=len(improvements),
-        critical_issues=critical_count,
-        high_issues=high_count,
-        medium_issues=medium_count,
-        low_issues=low_count
-    )
-    
-    return _current_analysis
+        if not selected_gpos:
+            raise HTTPException(status_code=404, detail="No valid GPOs found for the provided IDs.")
+
+        # Run Analysis
+        conflicts = detect_conflicts(selected_gpos, selected_settings)
+        duplicates = detect_duplicates(selected_gpos, selected_settings)
+        improvements = generate_improvements(selected_gpos, selected_settings)
+        
+        # Calculate severity counts
+        critical_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.CRITICAL)
+        high_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.HIGH)
+        medium_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.MEDIUM)
+        low_count = sum(1 for i in conflicts + duplicates if i.severity == SeverityLevel.LOW)
+        
+        # Update global state
+        _current_session_gpo_ids = gpo_ids
+        _current_analysis = AnalysisResult(
+            analyzed_at=datetime.now(),
+            gpo_count=len(selected_gpos),
+            setting_count=len(selected_settings),
+            gpos=selected_gpos,
+            settings=selected_settings,
+            conflicts=conflicts,
+            duplicates=duplicates,
+            improvements=improvements,
+            conflict_count=len(conflicts),
+            duplicate_count=len(duplicates),
+            improvement_count=len(improvements),
+            critical_issues=critical_count,
+            high_issues=high_count,
+            medium_issues=medium_count,
+            low_issues=low_count
+        )
+        
+        return _current_analysis
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Analysis Failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
 @router.get("/analysis/object")

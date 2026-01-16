@@ -38,6 +38,10 @@ export default function LibraryPanel({ onAnalyze }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(Array.from(selected))
             })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.detail || "Analysis failed")
+            }
             const result = await res.json()
             onAnalyze(result)
         } catch (err) {
@@ -45,6 +49,21 @@ export default function LibraryPanel({ onAnalyze }) {
         } finally {
             setAnalyzing(false)
         }
+    }
+
+    const handleDelete = async () => {
+        if (selected.size === 0) return
+        if (!confirm(`Delete ${selected.size} GPOs? This cannot be undone.`)) return
+
+        for (const id of selected) {
+            await fetch(`/api/library/${id}`, { method: 'DELETE' })
+        }
+
+        // Refresh
+        const res = await fetch('/api/library')
+        const data = await res.json()
+        setGpos(data)
+        setSelected(new Set())
     }
 
     if (loading) return <div className="p-4 text-center">Loading Library...</div>
@@ -55,6 +74,15 @@ export default function LibraryPanel({ onAnalyze }) {
                 <h2>GPO Library</h2>
                 <div className="actions">
                     <span className="text-sm text-muted">{selected.size} selected</span>
+                    {selected.size > 0 && (
+                        <button
+                            className="btn btn-danger btn-sm"
+                            style={{ marginRight: '8px' }}
+                            onClick={handleDelete}
+                        >
+                            Delete
+                        </button>
+                    )}
                     <button
                         className="btn btn-primary"
                         disabled={selected.size === 0 || analyzing}

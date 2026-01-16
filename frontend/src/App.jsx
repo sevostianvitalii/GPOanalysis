@@ -126,13 +126,17 @@ function App() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-        { id: 'upload', label: 'Upload', icon: '📤' },
         { id: 'library', label: 'Library', icon: '📚' },
         { id: 'object-analysis', label: 'Object Lookup', icon: '🔍' },
-        { id: 'conflicts', label: 'Conflicts', icon: '⚠️', count: analysis?.conflict_count },
-        { id: 'duplicates', label: 'Duplicates', icon: '📋', count: analysis?.duplicate_count },
-        { id: 'improvements', label: 'Improvements', icon: '💡', count: analysis?.improvement_count },
     ]
+
+    if (hasAnalysis) {
+        tabs.push(
+            { id: 'conflicts', label: 'Conflicts', icon: '⚠️', count: analysis?.conflict_count },
+            { id: 'duplicates', label: 'Duplicates', icon: '📋', count: analysis?.duplicate_count },
+            { id: 'improvements', label: 'Improvements', icon: '💡', count: analysis?.improvement_count }
+        )
+    }
 
     return (
         <div className="app">
@@ -145,37 +149,26 @@ function App() {
 
             <main className="main-content">
                 <div className="container">
-                    {!hasAnalysis ? (
-                        <div className="upload-section">
-                            <FileUpload onUpload={handleUpload} loading={loading} />
-                            <div className="load-previous">
-                                <button
-                                    className="btn btn-secondary"
-                                    onClick={() => setSaveLoadModal('load')}
-                                >
-                                    📂 Load Previous Analysis
-                                </button>
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            {/* Tab Navigation */}
-                            <div className="tab-nav">
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab.id}
-                                        className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-                                        onClick={() => setActiveTab(tab.id)}
-                                    >
-                                        <span className="tab-icon">{tab.icon}</span>
-                                        <span className="tab-label">{tab.label}</span>
-                                        {tab.count !== undefined && tab.count > 0 && (
-                                            <span className="tab-count">{tab.count}</span>
-                                        )}
-                                    </button>
-                                ))}
 
-                                <div className="tab-actions">
+                    {/* Tab Navigation - Always visible */}
+                    <div className="tab-nav">
+                        {tabs.map(tab => (
+                            <button
+                                key={tab.id}
+                                className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                                onClick={() => setActiveTab(tab.id)}
+                            >
+                                <span className="tab-icon">{tab.icon}</span>
+                                <span className="tab-label">{tab.label}</span>
+                                {tab.count !== undefined && tab.count > 0 && (
+                                    <span className="tab-count">{tab.count}</span>
+                                )}
+                            </button>
+                        ))}
+
+                        <div className="tab-actions">
+                            {hasAnalysis && (
+                                <>
                                     <button
                                         className="btn btn-secondary"
                                         onClick={() => setSaveLoadModal('save')}
@@ -184,32 +177,47 @@ function App() {
                                         💾 Save
                                     </button>
                                     <ExportButtons />
-                                </div>
-                            </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
 
-                            {/* Tab Content */}
-                            <div className="tab-content animate-fade-in">
-                                {activeTab === 'dashboard' && (
-                                    <Dashboard analysis={analysis} />
-                                )}
-                                {activeTab === 'upload' && (
-                                    <div className="upload-tab-content">
-                                        <FileUpload onUpload={handleUpload} loading={loading} />
-                                        <p className="text-center text-muted mt-4">
-                                            New uploads will replace the current analysis view but are saved to the Library.
-                                        </p>
+                    {/* Tab Content */}
+                    <div className="tab-content animate-fade-in">
+                        {activeTab === 'dashboard' && (
+                            !hasAnalysis ? (
+                                <div className="upload-section">
+                                    <FileUpload onUpload={handleUpload} loading={loading} />
+                                    <div className="load-previous">
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => setSaveLoadModal('load')}
+                                        >
+                                            📂 Load Previous Analysis
+                                        </button>
                                     </div>
-                                )}
-                                {activeTab === 'library' && (
-                                    <LibraryPanel onAnalyze={(result) => {
-                                        setAnalysis(result)
-                                        // Update stats logic could be here, or auto-updated
-                                        setActiveTab('dashboard') // Or stay? Let's go to dashboard to see results
-                                    }} />
-                                )}
-                                {activeTab === 'object-analysis' && (
-                                    <ObjectAnalysis />
-                                )}
+                                    <p className="text-center text-muted mt-4">
+                                        or select GPOs from the <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('library') }}>Library</a>
+                                    </p>
+                                </div>
+                            ) : (
+                                <Dashboard analysis={analysis} />
+                            )
+                        )}
+
+                        {activeTab === 'library' && (
+                            <LibraryPanel onAnalyze={(result) => {
+                                setAnalysis(result)
+                                setActiveTab('dashboard')
+                            }} />
+                        )}
+
+                        {activeTab === 'object-analysis' && (
+                            <ObjectAnalysis />
+                        )}
+
+                        {hasAnalysis && (
+                            <>
                                 {activeTab === 'conflicts' && (
                                     <ConflictTable conflicts={analysis?.conflicts || []} />
                                 )}
@@ -219,9 +227,10 @@ function App() {
                                 {activeTab === 'improvements' && (
                                     <ImprovementPanel improvements={analysis?.improvements || []} />
                                 )}
-                            </div>
-                        </>
-                    )}
+                            </>
+                        )}
+                    </div>
+
                 </div>
             </main>
 

@@ -76,6 +76,7 @@ Successfully implemented three new features:
 2. See all uploaded GPOs.
 3. Select checkboxes.
 4. Click "Analyze Selected".
+5. Use "Delete" key to remove GPOs from library.
 
 ---
 
