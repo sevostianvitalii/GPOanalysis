@@ -6,6 +6,7 @@ import ConflictTable from './components/ConflictTable'
 import DuplicateList from './components/DuplicateList'
 import ImprovementPanel from './components/ImprovementPanel'
 import ExportButtons from './components/ExportButtons'
+import SaveLoadModal from './components/SaveLoadModal'
 
 function App() {
     const [theme, setTheme] = useState('light')
@@ -13,6 +14,7 @@ function App() {
     const [analysis, setAnalysis] = useState(null)
     const [loading, setLoading] = useState(false)
     const [activeTab, setActiveTab] = useState('dashboard')
+    const [saveLoadModal, setSaveLoadModal] = useState(null) // 'save' | 'load' | null
 
     // Initialize theme
     useEffect(() => {
@@ -139,7 +141,17 @@ function App() {
             <main className="main-content">
                 <div className="container">
                     {!hasAnalysis ? (
-                        <FileUpload onUpload={handleUpload} loading={loading} />
+                        <div className="upload-section">
+                            <FileUpload onUpload={handleUpload} loading={loading} />
+                            <div className="load-previous">
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setSaveLoadModal('load')}
+                                >
+                                    📂 Load Previous Analysis
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <>
                             {/* Tab Navigation */}
@@ -159,6 +171,13 @@ function App() {
                                 ))}
 
                                 <div className="tab-actions">
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => setSaveLoadModal('save')}
+                                        title="Save current analysis"
+                                    >
+                                        💾 Save
+                                    </button>
                                     <ExportButtons />
                                 </div>
                             </div>
@@ -267,7 +286,36 @@ function App() {
             justify-content: center;
           }
         }
+        
+        .upload-section {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--space-lg);
+        }
+        
+        .load-previous {
+          text-align: center;
+          padding: var(--space-md);
+          border-top: 1px solid var(--color-border);
+          width: 100%;
+          max-width: 600px;
+        }
       `}</style>
+
+            {/* Save/Load Modal */}
+            {saveLoadModal && (
+                <SaveLoadModal
+                    mode={saveLoadModal}
+                    onClose={(result) => {
+                        setSaveLoadModal(null)
+                        if (result === 'saved' || result === 'loaded') {
+                            fetchStats()
+                        }
+                    }}
+                    onLoad={() => fetchStats()}
+                />
+            )}
         </div>
     )
 }

@@ -24,6 +24,9 @@ from backend.app.analyzers.improvement_engine import generate_improvements
 from backend.app.exporters.csv_exporter import export_to_csv
 from backend.app.exporters.pdf_exporter import export_to_pdf
 from backend.app.exporters.action_generator import ActionGenerator
+from backend.app.storage import (
+    save_analysis, load_analysis, list_saved_analyses, delete_saved_analysis
+)
 
 logger = logging.getLogger(__name__)
 
@@ -430,3 +433,61 @@ async def get_statistics():
         },
         "uploaded_files": _uploaded_files
     }
+
+
+# =============================================================================
+# Analysis Storage Endpoints
+# =============================================================================
+
+@router.post("/analysis/save")
+async def save_current_analysis(name: str = Query(..., description="Name for the saved analysis")):
+    """Save the current analysis with a given name."""
+    global _current_analysis
+    
+    if not _current_analysis:
+        raise HTTPException(status_code=404, detail="No analysis available to save.")
+    
+    result = save_analysis(_current_analysis, name)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error", "Failed to save analysis"))
+    
+    return result
+
+
+@router.get("/analysis/saved")
+async def get_saved_analyses():
+    """Get list of all saved analyses."""
+    return list_saved_analyses()
+
+
+@router.get("/analysis/load/{filename}")
+async def load_saved_analysis(filename: str):
+    """Load a previously saved analysis."""
+    global _current_analysis, _uploaded_files
+    
+    analysis = load_analysis(filename)
+    
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Analysis not found or failed to load.")
+    
+    _current_analysis = analysis
+    _uploaded_files = []  # Clear uploaded files list (loaded from save)
+    
+    return {
+        "success": True,
+        "message": f"Loaded analysis with {analysis.gpo_count} GPOs",
+        "gpo_count": analysis.gpo_count,
+        "setting_count": analysis.setting_count
+    }
+
+
+@router.delete("/analysis/saved/{filename}")
+async def delete_analysis(filename: str):
+    """Delete a saved analysis."""
+    result = delete_saved_analysis(filename)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=404, detail=result.get("error", "Failed to delete analysis"))
+    
+    return result

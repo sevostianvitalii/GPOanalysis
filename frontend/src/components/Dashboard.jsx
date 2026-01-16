@@ -1,4 +1,9 @@
+import { useState } from 'react'
+import PolicySettingsModal from './PolicySettingsModal'
+
 function Dashboard({ analysis }) {
+    const [selectedGpo, setSelectedGpo] = useState(null)
+
     if (!analysis) return null
 
     const healthScore = Math.max(0, 100 - (
@@ -120,15 +125,31 @@ function Dashboard({ analysis }) {
                                 <th>Domain</th>
                                 <th>Modified</th>
                                 <th>Source</th>
+                                <th>Settings</th>
                             </tr>
                         </thead>
                         <tbody>
                             {analysis.gpos?.map((gpo, i) => (
-                                <tr key={i}>
+                                <tr
+                                    key={i}
+                                    className="gpo-row"
+                                    onClick={() => setSelectedGpo(gpo)}
+                                >
                                     <td className="font-semibold">{gpo.name}</td>
                                     <td>{gpo.domain || 'N/A'}</td>
                                     <td>{gpo.modified ? new Date(gpo.modified).toLocaleDateString() : 'N/A'}</td>
                                     <td className="text-muted text-sm">{gpo.source_file?.split(/[/\\]/).pop()}</td>
+                                    <td>
+                                        <button
+                                            className="btn btn-sm btn-primary"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                setSelectedGpo(gpo)
+                                            }}
+                                        >
+                                            📋 View
+                                        </button>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
@@ -269,7 +290,30 @@ function Dashboard({ analysis }) {
           text-align: right;
           font-weight: 600;
         }
+        
+        .gpo-row {
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+        
+        .gpo-row:hover {
+          background: var(--color-bg-tertiary);
+        }
+        
+        .btn-sm {
+          padding: var(--space-xs) var(--space-sm);
+          font-size: 0.75rem;
+        }
       `}</style>
+
+            {/* Policy Settings Modal */}
+            {selectedGpo && (
+                <PolicySettingsModal
+                    gpo={selectedGpo}
+                    settings={analysis.settings || []}
+                    onClose={() => setSelectedGpo(null)}
+                />
+            )}
         </div>
     )
 }

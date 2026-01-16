@@ -56,6 +56,11 @@ class CSVExporter:
         output.write(self._export_gpos())
         output.write("\n")
         
+        # All Settings section (new)
+        output.write("=== ALL POLICY SETTINGS ===\n")
+        output.write(self._export_settings())
+        output.write("\n")
+        
         # Conflicts section
         output.write("=== CONFLICTS ===\n")
         output.write(self._export_conflicts())
@@ -184,7 +189,7 @@ class CSVExporter:
         # Header
         writer.writerow([
             "Severity", "Category", "Title", 
-            "Affected GPOs", "Description", "Action", "Estimated Impact"
+            "Affected GPOs", "Description", "Action", "Estimated Impact", "Reference URL"
         ])
         
         # Data
@@ -196,7 +201,8 @@ class CSVExporter:
                 ", ".join(improvement.affected_gpos),
                 improvement.description,
                 improvement.action,
-                improvement.estimated_impact
+                improvement.estimated_impact,
+                improvement.reference_url or ""
             ])
         
         return output.getvalue()
