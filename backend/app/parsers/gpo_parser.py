@@ -44,7 +44,42 @@ class GPOParser:
             Tuple of (list of GPOInfo, list of PolicySetting)
         """
         suffix = file_path.suffix.lower()
-        content = file_path.read_text(encoding='utf-8', errors='replace')
+        
+        # Detect encoding by checking BOM or file signature
+        raw_bytes = file_path.read_bytes()
+        encoding = 'utf-8'
+        
+        # Check for BOM markers
+        if raw_bytes[:2] == b'\xff\xfe':
+            # UTF-16 LE BOM
+            encoding = 'utf-16-le'
+            logger.debug("Detected UTF-16LE encoding (BOM)")
+        elif raw_bytes[:2] == b'\xfe\xff':
+            # UTF-16 BE BOM
+            encoding = 'utf-16-be'
+            logger.debug("Detected UTF-16BE encoding (BOM)")
+        elif raw_bytes[:3] == b'\xef\xbb\xbf':
+            # UTF-8 BOM
+            encoding = 'utf-8'
+            logger.debug("Detected UTF-8 encoding (BOM)")
+        else:
+            # No BOM, try to detect from content
+            # Check if it looks like UTF-16 (many null bytes in ASCII range)
+            if len(raw_bytes) > 100:
+                null_count = raw_bytes[:100].count(b'\x00')
+                if null_count > 20:  # Likely UTF-16
+                    encoding = 'utf-16-le'
+                    logger.debug("Detected UTF-16LE encoding (heuristic)")
+        
+        try:
+            content = raw_bytes.decode(encoding)
+        except Exception as e:
+            logger.warning(f"Failed to decode with {encoding}, falling back to UTF-8 with error replacement: {e}")
+            content = raw_bytes.decode('utf-8', errors='replace')
+        
+        if not content or len(content) < 100:
+            logger.error(f"Failed to read file {file_path} properly")
+            return [], []
         
         if suffix in ['.html', '.htm']:
             return self._parse_html(content, str(file_path))
@@ -165,7 +200,189 @@ class GPOParser:
                             gpo_info.id = value
     
     def _extract_settings_html(self, soup: BeautifulSoup, gpo_id: str, gpo_name: str) -> list[PolicySetting]:
-        """Extract policy settings from HTML tables."""
+        """Extract policy settings from HTML tables and div-based structures."""
+        settings = []
+        
+        # First, try to parse Get-GPOReport div-based structure
+        div_settings = self._extract_settings_from_divs(soup, gpo_id, gpo_name)
+        if div_settings:
+            logger.info(f"Found {len(div_settings)} settings using div-based parsing")
+            settings.extend(div_settings)
+        
+        # If no div-based settings found, fall back to table-based parsing
+        if not div_settings:
+            logger.info("No div-based settings found, trying table-based parsing")
+            table_settings = self._extract_settings_from_tables(soup, gpo_id, gpo_name)
+            settings.extend(table_settings)
+        
+        return settings
+    
+    def _extract_settings_from_divs(self, soup: BeautifulSoup, gpo_id: str, gpo_name: str) -> list[PolicySetting]:
+        """Extract settings from Get-GPOReport HTML div-based structure.
+        
+        Handles the structure:
+        User/Computer Configuration (Enabled)
+          -> Preferences
+             -> Windows Settings
+                -> Registry
+                   -> Collection: ...
+                      -> Registry item: <name>
+        """
+        settings = []
+        current_scope = "Computer"
+        
+        # Find Computer and User Configuration sections
+        for config_div in soup.find_all('div', class_='he0_expanded'):
+            span = config_div.find('span', class_='sectionTitle')
+            if not span:
+                continue
+                
+            config_text = span.get_text(strip=True)
+            
+            # Determine scope from section title
+            if 'computer configuration' in config_text.lower():
+                current_scope = "Computer"
+            elif 'user configuration' in config_text.lower():
+                current_scope = "User"
+            else:
+                continue
+            
+            logger.debug(f"Processing {current_scope} Configuration section")
+            
+            # Find all Registry item divs within this configuration
+            # Look for divs with class he4 (registry items are at this level)
+            container = config_div.find_next_sibling('div', class_='container')
+            if not container:
+                continue
+            
+            # Build category path by traversing the hierarchy
+            registry_items = container.find_all('div', class_='he4')
+            
+            for item_div in registry_items:
+                item_span = item_div.find('span', class_='sectionTitle')
+                if not item_span:
+                    continue
+                
+                item_title = item_span.get_text(strip=True)
+                
+                # Check if this is a registry item
+                if item_title.startswith('Registry item:'):
+                    # Extract setting name from title
+                    setting_name = item_title.replace('Registry item:', '').strip()
+                    
+                    # Find the General section with the properties table
+                    item_container = item_div.find_next_sibling('div', class_='container')
+                    if not item_container:
+                        continue
+                    
+                    # Extract registry details from the properties table
+                    setting = self._parse_registry_item(
+                        item_container, setting_name, gpo_id, gpo_name, current_scope
+                    )
+                    
+                    if setting:
+                        settings.append(setting)
+        
+        return settings
+    
+    def _parse_registry_item(
+        self, 
+        container, 
+        setting_name: str, 
+        gpo_id: str, 
+        gpo_name: str, 
+        scope: str
+    ) -> Optional[PolicySetting]:
+        """Parse a registry item from Get-GPOReport HTML structure.
+        
+        Extracts:
+        - Action (Update/Create/Delete/Replace) -> determines state
+        - Key path
+        - Value name
+        - Value type
+        - Value data
+        """
+        # Find the General section
+        general_div = container.find('div', class_='he4h')
+        if not general_div:
+            return None
+        
+        general_container = general_div.find_next_sibling('div', class_='container')
+        if not general_container:
+            return None
+        
+        # Find the properties table
+        tables = general_container.find_all('table')
+        if not tables:
+            return None
+        
+        # Extract data from table rows
+        action = None
+        key_path = None
+        value_name = None
+        value_type = None
+        value_data = None
+        
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all('td')
+                if len(cells) >= 2:
+                    label = cells[0].get_text(strip=True).lower()
+                    value = cells[1].get_text(strip=True)
+                    
+                    if label == 'action':
+                        action = value
+                    elif label == 'key path':
+                        key_path = value
+                    elif label == 'value name':
+                        value_name = value
+                    elif label == 'value type':
+                        value_type = value
+                    elif label == 'value data':
+                        value_data = value
+        
+        # Determine state from action
+        state = PolicyState.NOT_CONFIGURED
+        if action:
+            action_lower = action.lower()
+            if action_lower in ['update', 'create', 'replace']:
+                state = PolicyState.ENABLED
+            elif action_lower == 'delete':
+                state = PolicyState.DISABLED
+        
+        # Build category from key path
+        category = "Registry"
+        if key_path:
+            # Use the first part of the key path as category
+            parts = key_path.split('\\')
+            if len(parts) > 1:
+                category = f"Registry/{parts[0]}"
+        
+        # Build full setting name including value name if available
+        full_name = setting_name
+        if value_name and value_name != setting_name:
+            full_name = f"{setting_name}/{value_name}"
+        
+        # Format value with type if available
+        formatted_value = value_data
+        if value_type and value_data:
+            formatted_value = f"{value_data} ({value_type})"
+        
+        return PolicySetting(
+            gpo_id=gpo_id,
+            gpo_name=gpo_name,
+            category=category,
+            name=full_name,
+            state=state,
+            value=formatted_value,
+            registry_path=key_path,
+            registry_value=value_name,
+            scope=scope
+        )
+    
+    def _extract_settings_from_tables(self, soup: BeautifulSoup, gpo_id: str, gpo_name: str) -> list[PolicySetting]:
+        """Extract policy settings from HTML tables (legacy parsing method)."""
         settings = []
         current_category = "General"
         current_scope = "Computer"
