@@ -49,3 +49,6 @@ uploads/
 
 # Windows
 Thumbs.db
+
+# Development documentation
+AGENTS.md
