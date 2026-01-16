@@ -126,6 +126,7 @@ function App() {
 
     const tabs = [
         { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+        { id: 'upload', label: 'Upload', icon: '📤' },
         { id: 'library', label: 'Library', icon: '📚' },
         { id: 'object-analysis', label: 'Object Lookup', icon: '🔍' },
         { id: 'conflicts', label: 'Conflicts', icon: '⚠️', count: analysis?.conflict_count },
@@ -190,6 +191,14 @@ function App() {
                             <div className="tab-content animate-fade-in">
                                 {activeTab === 'dashboard' && (
                                     <Dashboard analysis={analysis} />
+                                )}
+                                {activeTab === 'upload' && (
+                                    <div className="upload-tab-content">
+                                        <FileUpload onUpload={handleUpload} loading={loading} />
+                                        <p className="text-center text-muted mt-4">
+                                            New uploads will replace the current analysis view but are saved to the Library.
+                                        </p>
+                                    </div>
                                 )}
                                 {activeTab === 'library' && (
                                     <LibraryPanel onAnalyze={(result) => {
@@ -330,6 +339,13 @@ function App() {
                     onLoad={() => fetchStats()}
                 />
             )}
+            <style>{`
+                .upload-tab-content {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: var(--space-xl) 0;
+                }
+            `}</style>
         </div>
     )
 }

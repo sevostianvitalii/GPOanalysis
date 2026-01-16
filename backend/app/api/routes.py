@@ -606,7 +606,7 @@ async def start_analysis(
                 computer_enabled=sgpo.computer_enabled,
                 user_enabled=sgpo.user_enabled,
                 source_file=sgpo.source_file,
-                links=sgpo.links
+                links=[l.model_dump() for l in sgpo.links]
             )
             selected_gpos.append(gpo_info)
             
