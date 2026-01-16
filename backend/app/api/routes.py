@@ -65,52 +65,55 @@ async def upload_gpo_files(files: list[UploadFile] = File(...)):
     
     for file in files:
         try:
-            content = await file.read()
-            
-            # Detect encoding from BOM or heuristics (same logic as parse_file)
-            encoding = 'utf-8'
-            
-            # Check for BOM markers
-            if content[:2] == b'\xff\xfe':
-                encoding = 'utf-16-le'
-                logger.debug(f"Detected UTF-16LE encoding (BOM) for {file.filename}")
-            elif content[:2] == b'\xfe\xff':
-                encoding = 'utf-16-be'
-                logger.debug(f"Detected UTF-16BE encoding (BOM) for {file.filename}")
-            elif content[:3] == b'\xef\xbb\xbf':
-                encoding = 'utf-8'
-                logger.debug(f"Detected UTF-8 encoding (BOM) for {file.filename}")
-            else:
-                # No BOM, try to detect from content (check for UTF-16 pattern)
-                if len(content) > 100:
-                    null_count = content[:100].count(b'\x00')
-                    if null_count > 20:  # Likely UTF-16
-                        encoding = 'utf-16-le'
-                        logger.debug(f"Detected UTF-16LE encoding (heuristic) for {file.filename}")
-            
             try:
-                content_str = content.decode(encoding)
-            except Exception as e:
-                logger.warning(f"Failed to decode {file.filename} with {encoding}, falling back to UTF-8: {e}")
-                content_str = content.decode('utf-8', errors='replace')
-            
-            gpos, settings = parser.parse_content(
-                content_str, 
-                file.filename or "unknown",
-                file.content_type or ""
-            )
-            
-            all_gpos.extend(gpos)
-            all_settings.extend(settings)
-            
-            _uploaded_files.append({
-                "filename": file.filename,
-                "size": len(content),
-                "gpos_found": len(gpos),
-                "settings_found": len(settings)
-            })
-            
-            logger.info(f"Processed file '{file.filename}': {len(gpos)} GPO(s), {len(settings)} setting(s)")
+                content = await file.read()
+                
+                # Detect encoding from BOM or heuristics (same logic as parse_file)
+                encoding = 'utf-8'
+                
+                # Check for BOM markers
+                if content[:2] == b'\xff\xfe':
+                    encoding = 'utf-16-le'
+                    logger.debug(f"Detected UTF-16LE encoding (BOM) for {file.filename}")
+                elif content[:2] == b'\xfe\xff':
+                    encoding = 'utf-16-be'
+                    logger.debug(f"Detected UTF-16BE encoding (BOM) for {file.filename}")
+                elif content[:3] == b'\xef\xbb\xbf':
+                    encoding = 'utf-8'
+                    logger.debug(f"Detected UTF-8 encoding (BOM) for {file.filename}")
+                else:
+                    # No BOM, try to detect from content (check for UTF-16 pattern)
+                    if len(content) > 100:
+                        null_count = content[:100].count(b'\x00')
+                        if null_count > 20:  # Likely UTF-16
+                            encoding = 'utf-16-le'
+                            logger.debug(f"Detected UTF-16LE encoding (heuristic) for {file.filename}")
+                
+                try:
+                    content_str = content.decode(encoding)
+                except Exception as e:
+                    logger.warning(f"Failed to decode {file.filename} with {encoding}, falling back to UTF-8: {e}")
+                    content_str = content.decode('utf-8', errors='replace')
+                
+                gpos, settings = parser.parse_content(
+                    content_str, 
+                    file.filename or "unknown",
+                    file.content_type or ""
+                )
+                
+                all_gpos.extend(gpos)
+                all_settings.extend(settings)
+                
+                _uploaded_files.append({
+                    "filename": file.filename,
+                    "size": len(content),
+                    "gpos_found": len(gpos),
+                    "settings_found": len(settings)
+                })
+                
+                logger.info(f"Processed file '{file.filename}': {len(gpos)} GPO(s), {len(settings)} setting(s)")
+            finally:
+                await file.close()
             
         except Exception as e:
             error_msg = f"Error processing '{file.filename}': {str(e)}"
