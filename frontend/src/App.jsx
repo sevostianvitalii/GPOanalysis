@@ -249,6 +249,18 @@ function App() {
                     <p className="text-muted text-sm text-center">
                         GPO Analysis Tool • Analyze Group Policy Objects for conflicts, duplicates, and improvements
                     </p>
+                    <p className="text-muted text-sm text-center" style={{ marginTop: '0.5rem' }}>
+                        <a
+                            href="https://github.com/sevostianvitalii/GPOanalysis"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+                        >
+                            GitHub Repository
+                        </a>
+                        {' • '}
+                        <span style={{ opacity: 0.7 }}>Licensed under CC BY-NC 4.0</span>
+                    </p>
                 </div>
             </footer>
 
