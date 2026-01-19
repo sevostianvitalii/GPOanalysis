@@ -246,20 +246,21 @@ function App() {
 
             <footer className="footer">
                 <div className="container">
-                    <p className="text-muted text-sm text-center">
-                        GPO Analysis Tool • Analyze Group Policy Objects for conflicts, duplicates, and improvements
+                    <p className="text-secondary text-sm text-center">
+                        <strong>GPO Analysis Tool</strong> • Analyze Group Policy Objects for conflicts, duplicates, and improvements
                     </p>
-                    <p className="text-muted text-sm text-center" style={{ marginTop: '0.5rem' }}>
+                    <p className="text-center" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
                         <a
                             href="https://github.com/sevostianvitalii/GPOanalysis"
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: 'var(--color-primary)', textDecoration: 'none' }}
+                            className="github-link"
                         >
+                            <span style={{ fontSize: '1.2em', verticalAlign: 'middle', marginRight: '4px' }}>📦</span>
                             GitHub Repository
                         </a>
-                        {' • '}
-                        <span style={{ opacity: 0.7 }}>Licensed under CC BY-NC 4.0</span>
+                        <span className="text-muted" style={{ margin: '0 8px' }}>•</span>
+                        <span className="text-muted">Licensed under CC BY-NC 4.0</span>
                     </p>
                 </div>
             </footer>
@@ -327,6 +328,25 @@ function App() {
           padding: var(--space-lg) 0;
           border-top: 1px solid var(--color-border);
           margin-top: auto;
+          background-color: var(--color-bg-secondary);
+        }
+
+        .github-link {
+            color: var(--color-primary);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            background: var(--color-bg-tertiary);
+            border-radius: 20px;
+            transition: all 0.2s ease;
+        }
+
+        .github-link:hover {
+            background: var(--color-primary);
+            color: white;
+            transform: translateY(-1px);
         }
         
         @media (max-width: 768px) {
