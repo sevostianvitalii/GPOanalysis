@@ -1,0 +1,61 @@
+# =============================================================================
+# Docker Build Context Exclusions
+# Reduces context size and speeds up builds
+# =============================================================================
+
+# Version Control
+.git
+.gitignore
+.github
+
+# Python
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node.js - exclude local node_modules (built fresh in container)
+frontend/node_modules/
+frontend/dist/
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation and non-essential files
+*.md
+!README.md
+docs/
+*.htm
+*.html
+
+# Test files
+tests/
+*.test.js
+*.spec.js
+
+# Local development
+.env
+.env.local
+*.log
+
+# Data directories (mounted as volumes)
+data/
+uploads/
+exports/
+
+# Gemini/AI artifacts
+.gemini/

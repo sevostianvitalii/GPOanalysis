@@ -17,8 +17,9 @@ WORKDIR /app/frontend
 # Copy package files first for better caching
 COPY frontend/package*.json ./
 
-# Install dependencies
-RUN npm install --silent
+# Install dependencies with cache mount for faster rebuilds
+RUN --mount=type=cache,target=/root/.npm \
+    npm install --silent
 
 # Copy source and build
 COPY frontend/ ./
@@ -31,19 +32,21 @@ FROM ${BASE_PYTHON_IMAGE} AS backend-builder
 
 WORKDIR /app
 
-# Install build dependencies for WeasyPrint
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install build dependencies for WeasyPrint with cache mount
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
     libgdk-pixbuf-2.0-0 \
     libffi-dev \
-    shared-mime-info \
-    && rm -rf /var/lib/apt/lists/*
+    shared-mime-info
 
-# Copy requirements and install Python deps
+# Copy requirements and install Python deps with cache mount
 COPY backend/requirements.txt ./
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --user -r requirements.txt
 
 # -----------------------------------------------------------------------------
 # Stage 3: Production Image
@@ -57,8 +60,10 @@ LABEL org.opencontainers.image.source="https://github.com/sevostianvitalii/GPOan
 
 WORKDIR /app
 
-# Install runtime dependencies for WeasyPrint PDF generation
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install runtime dependencies for WeasyPrint PDF generation with cache mount
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
     libcairo2 \
@@ -69,7 +74,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     nginx \
     supervisor \
-    && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/uploads /app/exports \
     && mkdir -p /tmp/nginx/client_temp \
     && mkdir -p /tmp/nginx/proxy_temp \
