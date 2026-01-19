@@ -107,24 +107,24 @@ gpresult /H report.html
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Docker/Podman Container                   │
+│                    Docker/Podman Container                  │
 │  ┌─────────────────┐        ┌────────────────────────────┐  │
-│  │  Nginx (Port 80) │───────▶│  React Frontend            │  │
-│  │                  │        │  • File Upload             │  │
-│  │                  │        │  • Dashboard               │  │
-│  │                  │        │  • Conflict/Duplicate View │  │
-│  │       ↓ /api     │        │  • Export Controls         │  │
+│  │  Nginx (Port 80)│───────▶│  React Frontend            │  │
+│  │                 │        │  • File Upload             │  │
+│  │                 │        │  • Dashboard               │  │
+│  │                 │        │  • Conflict/Duplicate View │  │
+│  │       ↓ /api    │        │  • Export Controls         │  │
 │  └─────────────────┘        └────────────────────────────┘  │
-│           │                                                  │
-│           ▼                                                  │
+│           │                                                 │
+│           ▼                                                 │
 │  ┌─────────────────────────────────────────────────────────┐│
-│  │  FastAPI Backend (Port 8000)                             ││
-│  │  • SQLite Database (Peristent Storage)                   ││
-│  │  • GPO Parser (HTML/XML)                                 ││
-│  │  • Conflict Detector                                     ││
-│  │  • Duplicate Detector                                    ││
-│  │  • Improvement Engine                                    ││
-│  │  • CSV/PDF Exporters                                     ││
+│  │  FastAPI Backend (Port 8000)                            ││
+│  │  • SQLite Database (Peristent Storage)                  ││
+│  │  • GPO Parser (HTML/XML)                                ││
+│  │  • Conflict Detector                                    ││
+│  │  • Duplicate Detector                                   ││
+│  │  • Improvement Engine                                   ││
+│  │  • CSV/PDF Exporters                                    ││
 │  └─────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────┘
 ```
