@@ -196,4 +196,4 @@ GPOanalysis/
 
 ## License
 
-MIT License - See LICENSE file for details.
+See LICENSE file for details.
